@@ -1,0 +1,64 @@
+plugins {
+    id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.mod_group_id
+
+base {
+    archivesName = "${project.mod_id}-1.21.11-fabric"
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven {
+        name = 'TerraformersMC'
+        url = 'https://maven.terraformersmc.com/releases/'
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+    modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+    modRuntimeOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+}
+
+processResources {
+    var props = [
+        mod_id         : project.mod_id,
+        mod_name       : project.mod_name,
+        mod_version    : project.mod_version,
+        mod_license    : project.mod_license,
+        mod_authors    : project.mod_authors,
+        mod_description: project.mod_description,
+        loader_version : project.fabric_loader_version,
+        minecraft_version: project.minecraft_version
+    ]
+    inputs.properties props
+    filesMatching('fabric.mod.json') {
+        expand props
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+    options.encoding = 'UTF-8'
+}
+
+java {
+    withSourcesJar()
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
+
+sourceSets {
+    main {
+        java.srcDirs += ['../common/src/main/java']
+        resources.srcDirs += ['../common/src/main/resources']
+    }
+}
