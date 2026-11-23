@@ -1,7 +1,5 @@
 package com.velorise.simplemap.client;
 import com.velorise.simplemap.client.cave.CaveTextureManager.CaveMapManager;
-import com.velorise.simplemap.client.MapManager.MapConfig;
-
 import com.velorise.simplemap.client.MapWorkScheduler.MapTextureBuildWorker;
 import com.velorise.simplemap.client.MapWorkScheduler.MapProcessor;
 import com.velorise.simplemap.client.color.SurfaceColorizer.BlockTintPolicy;
@@ -798,7 +796,7 @@ public class MapRenderer {
         }
 
         // 6.5. Render pin marker if active and within visible bounds
-        if (drawPinContent && MapConfig.pinActive && viewingLiveDim) {
+        if (drawPinContent && MapConfig.pinActive) {
             if (MapConfig.pinWorldX >= minX && MapConfig.pinWorldX <= maxX &&
                     MapConfig.pinWorldZ >= minZ && MapConfig.pinWorldZ <= maxZ) {
 
@@ -818,7 +816,7 @@ public class MapRenderer {
                  * second projection that drifted during pixel-aligned framebuffer
                  * composition, opening animation and zoom interpolation.
                  */
-                if (!isMinimap) {
+                if (!isMinimap && viewingLiveDim) {
                     double playerX = net.minecraft.util.Mth.lerp(partialTick,
                             mc.player.xo, mc.player.getX()) * crossDimScale;
                     double playerZ = net.minecraft.util.Mth.lerp(partialTick,
@@ -1059,8 +1057,8 @@ public class MapRenderer {
         if (left.caveMode() != right.caveMode()) return false;
         if (left.fullCaveView() != right.fullCaveView()) return false;
         if (left.caveMode() && !left.fullCaveView() && left.caveLayerY() != right.caveLayerY()) return false;
-        // Kiểm tra xem bounding box của hai plan có giao nhau không (theo đơn vị region)
-        // Nếu người chơi đã di chuyển quá xa (teleport), hai plan sẽ không giao nhau
+        // Check whether the bounding boxes of the two plans intersect (in region units)
+        // If the player moved too far (teleport), the two plans will not intersect
         boolean regionsOverlap =
                 left.minRegionX() <= right.maxRegionX() && left.maxRegionX() >= right.minRegionX()
                 && left.minRegionZ() <= right.maxRegionZ() && left.maxRegionZ() >= right.minRegionZ();
@@ -1220,13 +1218,15 @@ public class MapRenderer {
                             : new CaveLeafSelection(fallback.region(), fallback.tileKey());
                 }
             };
-            collectCaveHierarchy(builder, source,
-                    minRegionX, maxRegionX, minRegionZ, maxRegionZ,
-                    minVisiblePageX, maxVisiblePageX,
-                    minVisiblePageZ, maxVisiblePageZ,
-                    hierarchyLevel, scale, caveBranchOnly,
-                    attentionPageX, attentionPageZ, centerOutTraversal,
-                    pageTableCoverage, drawnRegions);
+            if (caveTextures.hasAnyResidentCoverage()) {
+                collectCaveHierarchy(builder, source,
+                        minRegionX, maxRegionX, minRegionZ, maxRegionZ,
+                        minVisiblePageX, maxVisiblePageX,
+                        minVisiblePageZ, maxVisiblePageZ,
+                        hierarchyLevel, scale, caveBranchOnly,
+                        attentionPageX, attentionPageZ, centerOutTraversal,
+                        pageTableCoverage, drawnRegions);
+            }
             if (collectPending) {
                 CaveMapManager manager = CaveMapManager.getInstance();
                 int targetLayer = fullCaveView ? Integer.MIN_VALUE : manager.getActiveLayerY();
@@ -1347,23 +1347,25 @@ public class MapRenderer {
                         }
                     }
                 }
-                for (int pageZ = minVisiblePageZ;
-                        pageZ <= maxVisiblePageZ; pageZ++) {
-                    int rz = Math.floorDiv(pageZ, MapPageLayout.PAGES_PER_REGION);
-                    int prevCheckedRx = Integer.MIN_VALUE;
-                    boolean prevRegionHasPages = false;
-                    for (int pageX = minVisiblePageX;
-                            pageX <= maxVisiblePageX; pageX++) {
-                        if (!pageTableCoverage) {
-                            int rx = Math.floorDiv(pageX, MapPageLayout.PAGES_PER_REGION);
-                            if (rx != prevCheckedRx) {
-                                prevCheckedRx = rx;
-                                prevRegionHasPages = surfaceTextures.hasAnyPageTexture(rx, rz);
+                if (MapConfig.minimapNightMode != 0) {
+                    for (int pageZ = minVisiblePageZ;
+                            pageZ <= maxVisiblePageZ; pageZ++) {
+                        int rz = Math.floorDiv(pageZ, MapPageLayout.PAGES_PER_REGION);
+                        int prevCheckedRx = Integer.MIN_VALUE;
+                        boolean prevRegionHasPages = false;
+                        for (int pageX = minVisiblePageX;
+                                pageX <= maxVisiblePageX; pageX++) {
+                            if (!pageTableCoverage) {
+                                int rx = Math.floorDiv(pageX, MapPageLayout.PAGES_PER_REGION);
+                                if (rx != prevCheckedRx) {
+                                    prevCheckedRx = rx;
+                                    prevRegionHasPages = surfaceTextures.hasAnyPageTexture(rx, rz);
+                                }
+                                if (!prevRegionHasPages) continue;
                             }
-                            if (!prevRegionHasPages) continue;
+                            collectSurfaceGlowLeaf(builder, surfaceTextures,
+                                    pageX, pageZ, pageTableCoverage);
                         }
-                        collectSurfaceGlowLeaf(builder, surfaceTextures,
-                                pageX, pageZ, pageTableCoverage);
                     }
                 }
             }
@@ -3357,9 +3359,10 @@ public class MapRenderer {
             return 1.0f;
         }
 
-        float skyDarken = Math.max(0.0f, Math.min(1.0f,
+        // ClientLevel.getSkyDarken(partialTick) returns sky brightness in [0.2, 1.0]
+        // (1.0 during full daylight, 0.2 at midnight, with rapid dusk/dawn transitions).
+        float sunlight = Math.max(0.0f, Math.min(1.0f,
                 mc.level.getSkyDarken(partialTick)));
-        float sunlight = 1.0f - skyDarken;
         float normalizedSun = Math.max(0.0f, Math.min(1.0f,
                 (sunlight - 0.2f) / 0.8f));
         return ambient + (1.0f - ambient) * normalizedSun;
@@ -3379,8 +3382,9 @@ public class MapRenderer {
                 && !CaveMode.isFullView(mc)) {
             int layerY = CaveMode.getLayerY(mc);
             if (layerY >= 56) {
-                float skyDarken = Math.max(0.0f, Math.min(1.0f, mc.level.getSkyDarken(partialTick)));
-                return 0.82f + 0.18f * (1.0f - skyDarken);
+                float skyBrightness = Math.max(0.0f, Math.min(1.0f, mc.level.getSkyDarken(partialTick)));
+                float normalizedSun = Math.max(0.0f, Math.min(1.0f, (skyBrightness - 0.2f) / 0.8f));
+                return 0.82f + 0.18f * normalizedSun;
             }
         }
         return 0.88f;

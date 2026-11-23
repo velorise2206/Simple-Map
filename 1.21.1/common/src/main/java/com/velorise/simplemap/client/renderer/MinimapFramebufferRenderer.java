@@ -1,5 +1,6 @@
 package com.velorise.simplemap.client.renderer;
-import com.velorise.simplemap.client.MapManager.MapConfig;
+import com.velorise.simplemap.client.gpu.GlTextureDeleter;
+import com.velorise.simplemap.client.MapConfig;
 import com.velorise.simplemap.client.MapViewportCoordinator.MapLodPolicy;
 import com.velorise.simplemap.client.renderer.RetainedFullscreenFramePolicy.RetainedMinimapFramePolicy;
 import com.velorise.simplemap.client.waypoint.PinNavigation.WaypointManager.Waypoint;
@@ -149,19 +150,25 @@ public final class MinimapFramebufferRenderer {
 
         try {
             double guiScale = Math.max(1.0, minecraft.getWindow().getGuiScale());
-            int targetSize = MapRenderScalePolicy.physicalPixels(TARGET_SIZE, guiScale);
-            int contentSize = MapRenderScalePolicy.physicalPixels(CONTENT_SIZE, guiScale);
+            float coverage = rotateWithPlayer ? ROTATED_COVERAGE : 1.0f;
+            float displaySpan = size * coverage;
+            // Quantize minimap FBO physical scale to {1.0, 1.5, 2.0} based on actual
+            // on-screen HUD span so 4x GUI scale uses <= 768x768 instead of 1536x1536
+            // (4x less VRAM & fill-rate while preserving >= 1.25x supersampling).
+            double neededScale = (displaySpan * guiScale * 1.25) / CONTENT_SIZE;
+            double fboScale = neededScale <= 1.0 ? 1.0 : (neededScale <= 1.5 ? 1.5 : 2.0);
+            fboScale = Math.min(guiScale, fboScale);
+            int targetSize = MapRenderScalePolicy.physicalPixels(TARGET_SIZE, fboScale);
+            int contentSize = MapRenderScalePolicy.physicalPixels(CONTENT_SIZE, fboScale);
             int overscan = Math.max(1, (targetSize - contentSize) / 2);
             ensureTarget(targetSize);
             if (frontTarget == null || backTarget == null) return false;
 
-            float coverage = rotateWithPlayer ? ROTATED_COVERAGE : 1.0f;
-            float displaySpan = size * coverage;
             // CONTENT_SIZE maps to the final logical display span. Raster geometry
             // uses the physical content size, while overlay sizing remains in the
             // same logical ratio as the HUD.
             float targetScale = MapRenderScalePolicy.physicalPixelsPerBlock(
-                    pixelsPerBlock, guiScale)
+                    pixelsPerBlock, fboScale)
                     * (CONTENT_SIZE / Math.max(1.0f, displaySpan));
             float fixedOverlayScale = contentSize / Math.max(1.0f, displaySpan);
             double worldPerTargetPixel = 1.0 / Math.max(0.0001, targetScale);
@@ -518,15 +525,8 @@ public final class MinimapFramebufferRenderer {
         frontTarget = null;
         backTarget = null;
         if (oldFront == null && oldBack == null) return;
-        if (RenderSystem.isOnRenderThreadOrInit()) {
-            if (oldFront != null) oldFront.destroyBuffers();
-            if (oldBack != null && oldBack != oldFront) oldBack.destroyBuffers();
-        } else {
-            RenderSystem.recordRenderCall(() -> {
-                if (oldFront != null) oldFront.destroyBuffers();
-                if (oldBack != null && oldBack != oldFront) oldBack.destroyBuffers();
-            });
-        }
+        GlTextureDeleter.destroyRenderTarget(oldFront);
+        if (oldBack != oldFront) GlTextureDeleter.destroyRenderTarget(oldBack);
     }
 
     public void resetFailureState() {
@@ -592,7 +592,7 @@ public final class MinimapFramebufferRenderer {
                 != Float.floatToIntBits(targetScale)) {
             return false;
         }
-        // Nếu người chơi đã di chuyển vượt quá overscan của frame cũ, UV sẽ bị clamp làm kẹt vị trí minimap
+        // If the player moved past the previous frame's overscan, clamping UVs would freeze the minimap position
         double maxOffset = Math.max(1.0, renderedOverscan);
         double shiftX = Math.abs((centerX - renderedSnappedX) * renderedTargetScale);
         double shiftZ = Math.abs((centerZ - renderedSnappedZ) * renderedTargetScale);

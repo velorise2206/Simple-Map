@@ -23,7 +23,7 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import com.velorise.simplemap.client.MapManager.MapConfig;
+import com.velorise.simplemap.client.MapConfig;
 import net.minecraft.client.Minecraft;
 
 /**

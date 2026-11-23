@@ -1,6 +1,5 @@
 package com.velorise.simplemap.client;
 import com.velorise.simplemap.client.cave.CaveTextureManager.CaveMapManager;
-import com.velorise.simplemap.client.MapManager.MapConfig;
 import net.minecraft.resources.ResourceLocation;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;

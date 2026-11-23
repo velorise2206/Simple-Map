@@ -1,7 +1,7 @@
 package com.velorise.simplemap.client.gui;
 import com.velorise.simplemap.client.cave.CaveTextureManager.CaveMapManager;
 import com.velorise.simplemap.client.color.SurfaceColorizer.MapVisualClassifier;
-import com.velorise.simplemap.client.MapManager.MapConfig;
+import com.velorise.simplemap.client.MapConfig;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.resources.ResourceLocation;

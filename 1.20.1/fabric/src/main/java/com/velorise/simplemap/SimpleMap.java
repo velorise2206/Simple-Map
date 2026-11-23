@@ -7,7 +7,7 @@ import com.velorise.simplemap.client.MapActivityGate;
 import com.velorise.simplemap.client.MapDebugRecorder;
 import com.velorise.simplemap.client.MapManager;
 import com.velorise.simplemap.client.MapManager.MapArchitectureCoordinator;
-import com.velorise.simplemap.client.MapManager.MapConfig;
+import com.velorise.simplemap.client.MapConfig;
 import com.velorise.simplemap.client.MapManager.MapTeleportController;
 import com.velorise.simplemap.client.MapPerformanceGovernor;
 import com.velorise.simplemap.client.MapViewportCoordinator;

@@ -1,5 +1,6 @@
 package com.velorise.simplemap.client.renderer;
-import com.velorise.simplemap.client.MapManager.MapConfig;
+import com.velorise.simplemap.client.gpu.GlTextureDeleter;
+import com.velorise.simplemap.client.MapConfig;
 import com.velorise.simplemap.client.MapViewportCoordinator.MapLodPolicy;
 import com.velorise.simplemap.client.renderer.RetainedFullscreenFramePolicy.RetainedMinimapFramePolicy;
 import com.velorise.simplemap.client.renderer.RetainedFullscreenFramePolicy.RetainedViewportComposition;
@@ -472,15 +473,8 @@ public final class FullscreenMapFramebufferRenderer {
         frontTarget = null;
         backTarget = null;
         if (oldFront == null && oldBack == null) return;
-        if (RenderSystem.isOnRenderThreadOrInit()) {
-            if (oldFront != null) oldFront.destroyBuffers();
-            if (oldBack != null && oldBack != oldFront) oldBack.destroyBuffers();
-        } else {
-            RenderSystem.recordRenderCall(() -> {
-                if (oldFront != null) oldFront.destroyBuffers();
-                if (oldBack != null && oldBack != oldFront) oldBack.destroyBuffers();
-            });
-        }
+        GlTextureDeleter.destroyRenderTarget(oldFront);
+        if (oldBack != oldFront) GlTextureDeleter.destroyRenderTarget(oldBack);
     }
 
     public Snapshot snapshot() {

@@ -1,7 +1,6 @@
 package com.velorise.simplemap.client;
+import com.velorise.simplemap.client.gpu.GlTextureDeleter;
 import com.velorise.simplemap.client.cave.CaveTextureManager.CaveMapManager;
-import com.velorise.simplemap.client.MapManager.MapConfig;
-
 import com.velorise.simplemap.client.cave.*;
 import com.velorise.simplemap.client.cave.CaveTextureAtlas.CaveAtlasRegion;
 import com.velorise.simplemap.client.cave.CaveTextureManager.CaveMapManager.CaveRegion;
@@ -1016,7 +1015,7 @@ public final class MapOverviewTextureManager {
             if (pending != null) pending.cancel(false);
             ready = null;
             MapResidencyManager.getInstance().remove(overviewResidencyKey(key));
-            Minecraft.getInstance().getTextureManager().release(location);
+            GlTextureDeleter.releaseTexture(location);
         }
     }
 }

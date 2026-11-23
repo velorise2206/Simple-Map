@@ -2,7 +2,6 @@ package com.velorise.simplemap.client;
 import com.velorise.simplemap.client.cave.CaveTextureManager.CaveMapManager;
 import com.velorise.simplemap.client.MapManager.MapLightManager;
 import com.velorise.simplemap.client.MapManager.MapLightManager.LightRegion;
-import com.velorise.simplemap.client.MapManager.MapConfig;
 import com.velorise.simplemap.client.MapDebugRecorder.MapPipelineTelemetry;
 import com.velorise.simplemap.client.MapDebugRecorder.MapPipelineTelemetry.MapPipelineStage;
 import com.velorise.simplemap.client.MapRenderer.MapDrawResult;

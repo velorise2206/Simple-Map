@@ -75,7 +75,7 @@ cd /d "%REPO_ROOT%"
 echo.
 echo =====================================================================
 if "%EXITCODE%"=="0" (
-    echo [Launcher] Game da dong binh thuong.
+    echo [Launcher] Game closed normally.
 ) else (
     echo [Launcher] Game exited with code: %EXITCODE%
 )
@@ -88,10 +88,10 @@ if exist "%LATEST_LOG_TXT%" (
 )
 if defined LATEST_DIR (
     echo.
-    echo [Telemetry Output] Thu muc ket qua phan tich session gan nhat:
+    echo [Telemetry Output] Latest session telemetry directory:
     echo   !LATEST_DIR!
     echo.
-    echo   Cac tep da ghi:
+    echo   Recorded files:
     if exist "!LATEST_DIR!\metrics.csv" (
         echo   [x] !LATEST_DIR!\metrics.csv
     )
@@ -99,12 +99,12 @@ if defined LATEST_DIR (
         echo   [x] !LATEST_DIR!\events.jsonl
     )
     echo.
-    set /p "OPEN_DIR=Ban co muon mo thu muc debug vua tao khong? (Y/N): "
+    set /p "OPEN_DIR=Open the generated debug folder? [Y/N]: "
     if /i "!OPEN_DIR!"=="Y" (
         start "" "!LATEST_DIR!"
     )
 ) else (
-    echo [Telemetry Output] Chua tim thay thu muc debug moi (co the do chua vao World).
+    echo [Telemetry Output] No recent debug folder found - you may not have joined a world.
 )
 
 echo.

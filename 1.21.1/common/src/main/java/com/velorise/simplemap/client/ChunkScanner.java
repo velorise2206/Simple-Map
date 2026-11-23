@@ -3,7 +3,6 @@ import com.velorise.simplemap.client.cave.CaveTextureManager.CaveMapManager;
 import com.velorise.simplemap.client.color.SurfaceColorizer.MapVisualClassifier;
 import com.velorise.simplemap.client.MapManager.MapLightManager;
 import com.velorise.simplemap.client.MapManager.MapLightManager.LightRegion;
-import com.velorise.simplemap.client.MapManager.MapConfig;
 import com.velorise.simplemap.client.MapWorkScheduler.MapProcessor;
 import com.velorise.simplemap.client.color.SurfaceColorizer.BlockTintPolicy;
 import com.velorise.simplemap.client.color.SurfaceColorizer.SurfaceTintData;
@@ -164,7 +163,7 @@ public class ChunkScanner {
     private long surfaceWriterLastPulseNanos;
     /** One-shot destination refresh armed by MapActivityGate.teleportEpoch(). */
     private boolean teleportRecoverySeedPending;
-    /** Teleport epoch cuối đã được xử lý trong cave mode. */
+    /** Last teleport epoch processed in cave mode. */
     private long lastObservedTeleportEpoch = Long.MIN_VALUE;
     private final Map<String, ViewportScanState> viewportScans = new HashMap<>();
     private volatile long forcedRescanUntilNanos;
@@ -617,12 +616,12 @@ public class ChunkScanner {
         boolean caveActive = CaveMode.isActive(mc);
         boolean cavePreparing = !caveActive && CaveMode.shouldPrepare(mc);
         synchronizeCaveModeRevision();
-        // Xử lý teleport trong cave mode: xóa cursors cũ và quét ngay vùng mới
+        // Handle teleport in cave mode: clear stale cursors and scan the new area immediately
         if (caveActive) {
             long currentTeleportEpoch = MapActivityGate.getInstance().teleportEpoch();
             if (currentTeleportEpoch != lastObservedTeleportEpoch && lastObservedTeleportEpoch != Long.MIN_VALUE) {
                 lastObservedTeleportEpoch = currentTeleportEpoch;
-                // Xóa các cursors quét cũ tại vị trí trước khi teleport
+                // Clear stale scan cursors from the pre-teleport location
                 normalScans.clear();
                 urgentChunkCursors.clear();
                 immediateCursors.clear();

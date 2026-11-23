@@ -17,7 +17,7 @@ echo   3) Forge 1.20.1    (Java 17) [DEBUG ^& TELEMETRY]
 echo   4) Fabric 1.20.1   (Java 17) [DEBUG ^& TELEMETRY]
 echo   0) Exit
 echo ---------------------------------------------------------------------
-echo   Phim nong trong game: F8 (HUD Overlay), F9 (Toggle Log), F10 (Mark Issue)
+echo   In-game hotkeys: F8 (HUD Overlay), F9 (Toggle Log), F10 (Mark Issue)
 echo =====================================================================
 set /p "CHOICE=Select version to launch in debug mode [1-4]: "
 
@@ -39,7 +39,7 @@ if "%CHOICE%"=="1.20.1\fabric" goto :RUN_FABRIC_1201
 
 if "%CHOICE%"=="0" exit /b 0
 
-echo Lua chon khong hop le: "%CHOICE%"
+echo Invalid selection: "%CHOICE%"
 timeout /t 2 >nul
 goto :MENU
 

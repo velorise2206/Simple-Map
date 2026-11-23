@@ -1,5 +1,4 @@
 package com.velorise.simplemap.client;
-import com.velorise.simplemap.client.MapManager.MapConfig;
 import com.velorise.simplemap.client.gui.BlockColorManagerScreen;
 import com.velorise.simplemap.client.gui.MapConfigScreen;
 import com.velorise.simplemap.client.gui.WaypointListScreen;

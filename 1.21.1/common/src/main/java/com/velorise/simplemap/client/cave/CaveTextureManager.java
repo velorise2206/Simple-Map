@@ -14,7 +14,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 
 import com.velorise.simplemap.client.MapManager.DimensionMapProfile;
-import com.velorise.simplemap.client.MapManager.MapConfig;
+import com.velorise.simplemap.client.MapConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.Level;
@@ -801,6 +801,10 @@ public final class CaveTextureManager {
         RegionBandKey rbk = new RegionBandKey(dimId, band, rx, rz);
         return residentPageMasks.getOrDefault(rbk, 0L) != 0L
                 || residentBranchMasks.getOrDefault(rbk, 0) != 0;
+    }
+
+    public boolean hasAnyResidentCoverage() {
+        return !residentPageMasks.isEmpty() || !residentBranchMasks.isEmpty();
     }
 
     public ResourceLocation getRegionTexture(int layerY, int rx, int rz) {
@@ -1631,7 +1635,7 @@ public final class CaveTextureManager {
         private static final int DEFAULT_FOLIAGE_TINT = 0xFF59AE30;
         private static final int DEFAULT_WATER_TINT = 0xFF3F76E4;
 
-        /** Cache phân loại block theo tên để tái sử dụng: false = solid terrain, true = passable/foliage */
+        /** Reusable block classification cache by name: false = solid terrain, true = passable/foliage */
         private static final Map<String, Boolean> FOLIAGE_KIND_CACHE = new ConcurrentHashMap<>();
 
         private static final class AnvilSliceBuffers {
@@ -1685,7 +1689,7 @@ public final class CaveTextureManager {
             }
         }
 
-        /** Kiểm tra xem block có phải là khối đặc thực sự của lòng đất (làm tắt shouldEnterGround ở Full Cave). */
+        /** Check whether a block is solid underground terrain (disables shouldEnterGround in Full Cave). */
         private static boolean isBlockPassable(String blockName) {
             return FOLIAGE_KIND_CACHE.computeIfAbsent(blockName, name -> {
                 try {

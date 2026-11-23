@@ -11,7 +11,7 @@ import com.velorise.simplemap.client.MapManager.MapLightManager.LightRegion;
 import com.velorise.simplemap.client.MapManager.MapArchitectureCoordinator;
 import com.velorise.simplemap.client.MapActivityGate;
 import com.velorise.simplemap.client.SimpleMapClientMod.MapKeybindActions;
-import com.velorise.simplemap.client.MapManager.MapConfig;
+import com.velorise.simplemap.client.MapConfig;
 import com.velorise.simplemap.client.MapDebugRecorder;
 import com.velorise.simplemap.client.MapManager;
 import com.velorise.simplemap.client.MapMutationBus;

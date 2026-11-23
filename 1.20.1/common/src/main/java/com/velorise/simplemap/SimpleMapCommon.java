@@ -1,6 +1,6 @@
 package com.velorise.simplemap;
 
-import com.velorise.simplemap.client.MapManager.MapConfig;
+import com.velorise.simplemap.client.MapConfig;
 import com.velorise.simplemap.client.MapManager;
 import com.velorise.simplemap.client.gui.MapScreen;
 import net.minecraft.client.Minecraft;

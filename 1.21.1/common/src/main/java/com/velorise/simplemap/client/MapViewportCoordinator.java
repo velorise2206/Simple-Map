@@ -1,6 +1,5 @@
 package com.velorise.simplemap.client;
 import com.velorise.simplemap.client.cave.CaveTextureManager.CaveMapManager;
-import com.velorise.simplemap.client.MapManager.MapConfig;
 import com.velorise.simplemap.client.MapDebugRecorder.MapPipelineTelemetry;
 import com.velorise.simplemap.client.MapWorkScheduler.MapProcessor;
 import com.velorise.simplemap.client.cave.CaveMode.CaveLayerBand;

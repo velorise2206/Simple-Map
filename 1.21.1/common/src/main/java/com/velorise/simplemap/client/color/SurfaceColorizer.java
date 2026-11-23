@@ -49,7 +49,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.IdentityHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReferenceArray;
-import com.velorise.simplemap.client.MapManager.MapConfig;
+import com.velorise.simplemap.client.MapConfig;
 
 import com.velorise.simplemap.client.*;
 import com.velorise.simplemap.client.session.MapSessionManager;
@@ -720,8 +720,8 @@ public final class SurfaceColorizer {
             int waterDepth, boolean vanillaMode) {
         int depth = Math.min(64, Math.max(1, waterDepth));
         float waterAmount = vanillaMode
-                ? clamp01(0.42f + depth * 0.035f)
-                : clamp01(0.25f + depth * 0.045f);
+                ? clamp01(0.48f + depth * 0.038f)
+                : clamp01(0.46f + depth * 0.042f);
         waterAmount = Math.min(vanillaMode ? 0.94f : 0.92f, waterAmount);
         int mixed = mixRgb(floorColor, waterTint, waterAmount);
         float attenuation = (float) Math.pow(0.975, Math.max(0, depth - 2));

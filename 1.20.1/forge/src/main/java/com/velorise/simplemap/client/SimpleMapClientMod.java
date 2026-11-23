@@ -3,7 +3,6 @@ package com.velorise.simplemap.client;
 import com.velorise.simplemap.MapBookHooks;
 import com.velorise.simplemap.SimpleMap;
 import com.velorise.simplemap.SimpleMap.ClientModEvents;
-import com.velorise.simplemap.client.MapManager.MapConfig;
 import com.velorise.simplemap.client.MapWorkScheduler.MapObservationScheduler;
 import com.velorise.simplemap.client.cave.CaveMode;
 import com.velorise.simplemap.client.cave.CaveTextureManager;

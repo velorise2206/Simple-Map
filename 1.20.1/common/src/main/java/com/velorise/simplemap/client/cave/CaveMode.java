@@ -1,6 +1,6 @@
 package com.velorise.simplemap.client.cave;
 import com.velorise.simplemap.client.cave.CaveTextureManager.CaveMapManager;
-import com.velorise.simplemap.client.MapManager.MapConfig;
+import com.velorise.simplemap.client.MapConfig;
 
 import com.velorise.simplemap.client.*;
 import com.velorise.simplemap.client.MapManager.DimensionMapProfile;
@@ -179,8 +179,11 @@ public final class CaveMode {
         if (MapConfig.getEffectiveCaveMapMode() == 2 && hasManualTopY(mc)) return true;
         DimensionMapProfile viewedProfile = manager.getCurrentDimensionProfile();
         boolean viewedHasCeiling = viewedProfile != null ? viewedProfile.hasCeiling() : mc.level.dimensionType().hasCeiling();
-        boolean viewedHasSkyLight = viewedProfile != null ? viewedProfile.hasSkyLight() : mc.level.dimensionType().hasSkyLight();
-        if (viewedHasCeiling || !viewedHasSkyLight) {
+        // Ceiling dimensions (such as The Nether) default to Cave Mode when viewed
+        // remotely or while the player is below the bedrock roof (Y < 127). On top
+        // of the Nether roof (Y >= 127), AUTO adapts to Surface Mode so bedrock,
+        // Nether hubs, and roof farms render naturally.
+        if (viewedHasCeiling && (!acceptsLive || mc.player.getY() < 127.0)) {
             return true;
         }
         if (!acceptsLive) {
@@ -207,8 +210,11 @@ public final class CaveMode {
         if (MapConfig.getEffectiveCaveMapMode() == 2 && hasManualTopY(mc)) return true;
         DimensionMapProfile viewedProfile = manager.getCurrentDimensionProfile();
         boolean viewedHasCeiling = viewedProfile != null ? viewedProfile.hasCeiling() : mc.level.dimensionType().hasCeiling();
-        boolean viewedHasSkyLight = viewedProfile != null ? viewedProfile.hasSkyLight() : mc.level.dimensionType().hasSkyLight();
-        if (viewedHasCeiling || !viewedHasSkyLight) {
+        // Ceiling dimensions (such as The Nether) default to Cave Mode when viewed
+        // remotely or while the player is below the bedrock roof (Y < 127). On top
+        // of the Nether roof (Y >= 127), AUTO adapts to Surface Mode so bedrock,
+        // Nether hubs, and roof farms render naturally.
+        if (viewedHasCeiling && (!acceptsLive || mc.player.getY() < 127.0)) {
             return true;
         }
         if (!acceptsLive) return false;
@@ -629,7 +635,7 @@ public final class CaveMode {
     }
 
     public static boolean shouldScanFromWorldTop(Level level) {
-        return level != null && (level.dimensionType().hasCeiling() || !level.dimensionType().hasSkyLight());
+        return level != null && level.dimensionType().hasCeiling();
     }
 
     public static final int CAVE_NOT_ACTIVE = Integer.MAX_VALUE;
@@ -653,7 +659,7 @@ public final class CaveMode {
         int startX = x - roofRadius;
         int startZ = z - roofRadius;
 
-        boolean ignoringHeightmaps = world.dimensionType().hasCeiling() || !world.dimensionType().hasSkyLight();
+        boolean ignoringHeightmaps = world.dimensionType().hasCeiling();
         int bottom = y;
         int top = Integer.MAX_VALUE;
         int potentialResult = defaultCaveStart;

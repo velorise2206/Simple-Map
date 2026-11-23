@@ -1,7 +1,7 @@
 package com.velorise.simplemap.client;
+import com.velorise.simplemap.client.gpu.GlTextureDeleter;
 import com.velorise.simplemap.client.MapManager.MapLightManager;
 import com.velorise.simplemap.client.MapManager.MapLightManager.LightRegion;
-import com.velorise.simplemap.client.MapManager.MapConfig;
 import com.velorise.simplemap.client.MapWorkScheduler.MapTextureBuildWorker;
 import com.velorise.simplemap.client.RegionSurfaceLodService.MapRegionLodPolicy;
 import com.velorise.simplemap.client.MapViewportCoordinator.MapSurfaceDemandPolicy;
@@ -2780,10 +2780,13 @@ public class MapTextureManager {
         // hierarchy only at quarter-page milestones (and on every update once a
         // page is complete). This removes synchronous render-thread amplification
         // without hiding progressive exploration.
-        if (firstGpuPublication
-                || mergedSubtiles != previousCompleteSubtiles
-                || mergedSubtiles == MapPageLayout.FULL_SUBTILE_MASK
-                || (completeSubtileCount & 3) == 0) {
+        int previousCompleteCount = Integer.bitCount(previousCompleteSubtiles);
+        boolean reachedFull = mergedSubtiles == MapPageLayout.FULL_SUBTILE_MASK
+                && previousCompleteSubtiles != MapPageLayout.FULL_SUBTILE_MASK;
+        boolean crossedQuarter = (completeSubtileCount >>> 2) > (previousCompleteCount >>> 2);
+        boolean periodicCompleteRefresh = mergedSubtiles == MapPageLayout.FULL_SUBTILE_MASK
+                && (page.uploadedRevision & 3L) == 0L;
+        if (firstGpuPublication || reachedFull || crossedQuarter || periodicCompleteRefresh) {
             MapOverviewTextureManager.getInstance().updateSurfaceLeafPage(
                     address.regionX() * MapPageLayout.PAGES_PER_REGION
                             + address.pageX(),
@@ -3973,14 +3976,13 @@ public class MapTextureManager {
             return true;
         }
 
-        // The exact 64x64 leaf is now one coherent 4x4 chunk transaction.
-        int[] coherentPixels = new int[leafPixels.length];
-        int[] coherentGlow = new int[leafGlow.length];
+        // The exact 64x64 leaf is already a complete 4x4 chunk transaction;
+        // reuse leafPixels/leafGlow directly without allocating duplicate 32 KB copies.
+        int[] coherentPixels = leafPixels;
+        int[] coherentGlow = leafGlow;
         long[] coherentRows = new long[MapPageLayout.PAGE_SIZE];
-        mergeCompleteSubtiles(coherentPixels, leafPixels, completeSubtiles);
-        mergeCompleteSubtiles(coherentGlow, leafGlow, completeSubtiles);
-        mergeSubtileKnownRows(coherentRows, completeSubtiles);
-        int knownColumns = countKnownColumns(coherentRows);
+        java.util.Arrays.fill(coherentRows, -1L);
+        int knownColumns = MapPageLayout.PAGE_SIZE * MapPageLayout.PAGE_SIZE;
 
         if (page.atlasSlot < 0) {
             page.atlasSlot = acquireSurfaceAtlasSlot(page.key);
@@ -5074,8 +5076,8 @@ public class MapTextureManager {
             if (pending != null) pending.cancel(false);
             MapResidencyManager.getInstance().remove(
                     "legacy:" + MapTextureManager.key(regionX, regionZ));
-            Minecraft.getInstance().getTextureManager().release(location);
-            Minecraft.getInstance().getTextureManager().release(glowLocation);
+            GlTextureDeleter.releaseTexture(location);
+            GlTextureDeleter.releaseTexture(glowLocation);
         }
     }
 

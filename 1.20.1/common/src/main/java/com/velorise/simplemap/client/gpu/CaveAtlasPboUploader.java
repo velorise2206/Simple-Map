@@ -180,7 +180,7 @@ public final class CaveAtlasPboUploader implements AutoCloseable {
     private void deletePbos() {
         for (int index = 0; index < unpackPbos.length; index++) {
             int pbo = unpackPbos[index];
-            if (pbo != 0) GL15.glDeleteBuffers(pbo);
+            if (pbo != 0) GlTextureDeleter.deleteBuffer(pbo);
             unpackPbos[index] = 0;
         }
         pboInitialized = false;
@@ -195,7 +195,6 @@ public final class CaveAtlasPboUploader implements AutoCloseable {
     @Override
     public void close() {
         if (closed) return;
-        RenderSystem.assertOnRenderThreadOrInit();
         closed = true;
         deletePbos();
         buffers.close();
