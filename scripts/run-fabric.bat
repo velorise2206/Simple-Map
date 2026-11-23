@@ -13,8 +13,8 @@ echo         Simple Map - Fabric Dev Client
 echo ====================================================
 echo   1) Fabric 1.21.1 (Java 21) [Normal]
 echo   2) Fabric 1.20.1 (Java 17) [Normal]
-echo   3) Fabric 1.21.1 (Java 21) [Debug & Telemetry]
-echo   4) Fabric 1.20.1 (Java 17) [Debug & Telemetry]
+echo   3) Fabric 1.21.1 (Java 21) [DEBUG ^& TELEMETRY]
+echo   4) Fabric 1.20.1 (Java 17) [DEBUG ^& TELEMETRY]
 echo   0) Exit
 echo ----------------------------------------------------
 set /p "CHOICE=Select version to run [1-4]: "
@@ -50,12 +50,12 @@ exit /b %ERRORLEVEL%
 
 :RUN_1211
 if defined JAVA21_HOME set "JAVA_HOME=%JAVA21_HOME%"
-set "TARGET_DIR=fabric-1.21.1"
+set "TARGET_DIR=1.21.1\fabric"
 goto :START_CLIENT
 
 :RUN_1201
 if defined JAVA17_HOME set "JAVA_HOME=%JAVA17_HOME%"
-set "TARGET_DIR=fabric-1.20.1"
+set "TARGET_DIR=1.20.1\fabric"
 goto :START_CLIENT
 
 :START_CLIENT

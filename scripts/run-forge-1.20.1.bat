@@ -17,7 +17,7 @@ echo ====================================================
 echo         Simple Map - Forge 1.20.1 Client
 echo ====================================================
 echo   1) Run Client (Normal)
-echo   2) Run Client (Debug & Telemetry Mode)
+echo   2) Run Client (DEBUG ^& TELEMETRY Mode)
 echo   0) Exit
 echo ----------------------------------------------------
 set /p "CHOICE=Select mode [1-2, default=1]: "
@@ -35,7 +35,7 @@ exit /b %ERRORLEVEL%
 if defined JAVA17_HOME set "JAVA_HOME=%JAVA17_HOME%"
 
 echo [Simple Map] Launching Forge 1.20.1 Client...
-cd /d "%REPO_ROOT%\forge-1.20.1"
+cd /d "%REPO_ROOT%\1.20.1\forge"
 call gradlew.bat runClient
 set "EXITCODE=%ERRORLEVEL%"
 cd /d "%REPO_ROOT%"

@@ -9,12 +9,12 @@ if not "%CHOICE%"=="" goto :HANDLE_CHOICE
 :MENU
 cls
 echo =====================================================================
-echo         SIMPLE MAP - ALL LOADERS DEBUG & TELEMETRY LAUNCHER
+echo         SIMPLE MAP - ALL LOADERS DEBUG ^& TELEMETRY LAUNCHER
 echo =====================================================================
-echo   1) Fabric 1.21.1   (Java 21) [Debug & Telemetry]
-echo   2) NeoForge 1.21.1 (Java 21) [Debug & Telemetry]
-echo   3) Forge 1.20.1    (Java 17) [Debug & Telemetry]
-echo   4) Fabric 1.20.1   (Java 17) [Debug & Telemetry]
+echo   1) Fabric 1.21.1   (Java 21) [DEBUG ^& TELEMETRY]
+echo   2) NeoForge 1.21.1 (Java 21) [DEBUG ^& TELEMETRY]
+echo   3) Forge 1.20.1    (Java 17) [DEBUG ^& TELEMETRY]
+echo   4) Fabric 1.20.1   (Java 17) [DEBUG ^& TELEMETRY]
 echo   0) Exit
 echo ---------------------------------------------------------------------
 echo   Phim nong trong game: F8 (HUD Overlay), F9 (Toggle Log), F10 (Mark Issue)
@@ -35,7 +35,7 @@ if "%CHOICE%"=="forge" goto :RUN_FORGE_1201
 if "%CHOICE%"=="1.20.1" goto :RUN_FORGE_1201
 
 if "%CHOICE%"=="4" goto :RUN_FABRIC_1201
-if "%CHOICE%"=="fabric-1.20.1" goto :RUN_FABRIC_1201
+if "%CHOICE%"=="1.20.1\fabric" goto :RUN_FABRIC_1201
 
 if "%CHOICE%"=="0" exit /b 0
 

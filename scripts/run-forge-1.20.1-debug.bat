@@ -3,29 +3,29 @@ setlocal enabledelayedexpansion
 set "REPO_ROOT=%~dp0.."
 cd /d "%REPO_ROOT%"
 
-title Simple Map - Forge 1.20.1 Client (Debug & Telemetry Mode)
+title Simple Map - Forge 1.20.1 Client (DEBUG ^& TELEMETRY Mode)
 
 echo =====================================================================
-echo           SIMPLE MAP - FORGE 1.20.1 DEBUG & TELEMETRY LAUNCHER
+echo           SIMPLE MAP - FORGE 1.20.1 DEBUG ^& TELEMETRY LAUNCHER
 echo =====================================================================
 echo.
-echo [1] KHOI DONG CHE DO DEBUG & TELEMETRY:
-echo   - JVM Flag: -Dsimplemap.debug=true duoc kich hoat.
-echo   - Bo ghi thong so (MapDebugRecorder) hoat dong san sang.
+echo [1] DEBUG MODE ENABLED ^& TELEMETRY:
+echo   - JVM Flag: -Dsimplemap.debug=true enabled.
+echo   - MapDebugRecorder is active and ready.
 echo.
-echo [2] CAC PHIM NONG TRONG GAME (KHI DANG CHOI HOAC DANG MO FULL MAP 'M'):
-echo   - [ F8  ] : BAT / TAT HUD OVERLAY (hien thi truc tiep thong so map:
-echo              FPS, frame time, Heap/GC, Page states, FBO status len man hinh).
-echo   - [ F9  ] : BAT / TAT GHI METRICS (mac dinh: tu dong BAT khi vao world).
-echo   - [ F10 ] : *** DANH DAU SU CO (MARK ISSUE) ***:
-echo              - Bam F10 ngay khi thay PAN MAP BI GIAT/LAG!
-echo              - Bam F10 khi lia den VUNG MAP BI DEN / KHONG LOAD CAVE!
-echo              - Khi bam F10, mod se ghi Burst Mode (250ms/mau lien tuc trong 20s)
-echo                va danh dau moc USER_MARKER de phan tich nguyen nhan chinh xac.
+echo [2] IN-GAME HOTKEYS (WHILE PLAYING OR IN FULLSCREEN MAP 'M'):
+echo   - [ F8  ] : TOGGLE HUD OVERLAY (displays live map metrics:
+echo              FPS, frame time, Heap/GC, Page states, FBO status on screen).
+echo   - [ F9  ] : TOGGLE METRICS RECORDING (default: auto-enabled on world join).
+echo   - [ F10 ] : *** MARK DEBUG ISSUE ***:
+echo              - Press F10 immediately when noticing map pan stutter/lag!
+echo              - Press F10 when panning over black/unloaded cave regions!
+echo              - Pressing F10 triggers Burst Mode (250ms sampling for 20s)
+echo                and records a USER_MARKER event for root-cause analysis.
 echo.
-echo [3] VI TRI LUU LOG METRICS:
-echo   - Thu muc: forge-1.20.1\run\simplemap-debug\
-echo   - Chuan gom: metrics.csv (thong so dinh luong) va events.jsonl (su kien/loi)
+echo [3] METRICS LOG LOCATION:
+echo   - Directory: 1.20.1\forge\run\simplemap-debug\
+echo   - Files: metrics.csv (quantitative metrics) and events.jsonl (events/errors)
 echo =====================================================================
 echo.
 
@@ -55,7 +55,7 @@ if defined JAVA_HOME (
 
 :JAVA_DETECTED
 if defined JAVA_HOME (
-    echo [Environment] Su dung JDK 17 tai: "%JAVA_HOME%"
+    echo [Environment] Using JDK 17 at: "%JAVA_HOME%"
     set "PATH=%JAVA_HOME%\bin;%PATH%"
 ) else (
     echo [Warning] Khong tim thay JAVA17_HOME co dinh, su dung Java mac dinh tren PATH.
@@ -64,10 +64,10 @@ if defined JAVA_HOME (
 :: Enable debug property environment variable
 set "SIMPLEMAP_DEBUG=true"
 
-echo [Launcher] Dang khoi chay Forge 1.20.1 Client voi che do Debug...
+echo [Launcher] Launching Forge 1.20.1 Client in Debug mode...
 echo ---------------------------------------------------------------------
 
-cd /d "%REPO_ROOT%\forge-1.20.1"
+cd /d "%REPO_ROOT%\1.20.1\forge"
 call gradlew.bat runClient -Psimplemap.debug=true "-Dsimplemap.debug=true"
 set "EXITCODE=%ERRORLEVEL%"
 cd /d "%REPO_ROOT%"
@@ -77,11 +77,11 @@ echo =====================================================================
 if "%EXITCODE%"=="0" (
     echo [Launcher] Game da dong binh thuong.
 ) else (
-    echo [Launcher] Game ket thuc voi ma loi: %EXITCODE%
+    echo [Launcher] Game exited with code: %EXITCODE%
 )
 echo =====================================================================
 
-set "LATEST_LOG_TXT=%REPO_ROOT%\forge-1.20.1\run\simplemap-debug\latest.txt"
+set "LATEST_LOG_TXT=%REPO_ROOT%\1.20.1\forge\run\simplemap-debug\latest.txt"
 set "LATEST_DIR="
 if exist "%LATEST_LOG_TXT%" (
     for /f "usebackq delims=" %%i in ("%LATEST_LOG_TXT%") do set "LATEST_DIR=%%i"

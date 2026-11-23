@@ -17,7 +17,7 @@ echo ====================================================
 echo         Simple Map - NeoForge 1.21.1 Client
 echo ====================================================
 echo   1) Run Client (Normal)
-echo   2) Run Client (Debug & Telemetry Mode)
+echo   2) Run Client (DEBUG ^& TELEMETRY Mode)
 echo   0) Exit
 echo ----------------------------------------------------
 set /p "CHOICE=Select mode [1-2, default=1]: "
@@ -35,7 +35,7 @@ exit /b %ERRORLEVEL%
 if defined JAVA21_HOME set "JAVA_HOME=%JAVA21_HOME%"
 
 echo [Simple Map] Launching NeoForge 1.21.1 Client...
-cd /d "%REPO_ROOT%\neoforge-1.21.1"
+cd /d "%REPO_ROOT%\1.21.1\neoforge"
 call gradlew.bat runClient
 set "EXITCODE=%ERRORLEVEL%"
 cd /d "%REPO_ROOT%"

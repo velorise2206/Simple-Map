@@ -16,7 +16,7 @@ echo     2) NeoForge 1.21.1 (Java 21)
 echo     3) Forge 1.20.1    (Java 17)
 echo     4) Fabric 1.20.1   (Java 17)
 echo.
-echo   [DEBUG & TELEMETRY CLIENT RUN]
+echo   [DEBUG ^& TELEMETRY CLIENT RUN]
 echo     5) Fabric 1.21.1   (Debug)
 echo     6) NeoForge 1.21.1 (Debug)
 echo     7) Forge 1.20.1    (Debug)
