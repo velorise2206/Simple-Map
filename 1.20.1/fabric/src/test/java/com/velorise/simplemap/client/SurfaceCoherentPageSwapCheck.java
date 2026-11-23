@@ -8,7 +8,7 @@ public final class SurfaceCoherentPageSwapCheck {
     private SurfaceCoherentPageSwapCheck() { }
 
     public static void main(String[] args) throws Exception {
-        Path root = Path.of("src/main/java/com/velorise/simplemap/client");
+        Path root = Path.of("../common/src/main/java/com/velorise/simplemap/client");
         String manager = Files.readString(root.resolve("MapTextureManager.java"));
         String sourceDb = Files.readString(root.resolve("SurfaceRegionSourceDatabase.java"));
 

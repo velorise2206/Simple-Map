@@ -9,7 +9,7 @@ public final class CaveDirectBufferPoolCheck {
 
     public static void main(String[] args) throws Exception {
         String source = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/gpu/CaveDirectBufferPool.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/gpu/CaveDirectBufferPool.java"));
         require(source.contains("MemoryUtil.memAlloc(BUFFER_BYTES)"),
                 "pool must allocate bounded native buffers");
         require(source.contains("available.pollFirst()")

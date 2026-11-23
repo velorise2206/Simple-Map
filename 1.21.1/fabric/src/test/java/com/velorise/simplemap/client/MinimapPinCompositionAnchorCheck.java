@@ -9,7 +9,7 @@ public final class MinimapPinCompositionAnchorCheck {
     private MinimapPinCompositionAnchorCheck() { }
 
     public static void main(String[] args) throws Exception {
-        Path root = Path.of("src/main/java/com/velorise/simplemap/client");
+        Path root = Path.of("../common/src/main/java/com/velorise/simplemap/client");
         String framebuffer = Files.readString(
                 root.resolve("renderer/MinimapFramebufferRenderer.java"));
         String renderer = Files.readString(root.resolve("MinimapRenderer.java"));

@@ -8,7 +8,7 @@ public final class SurfaceMinimapLoadedChunkProgressCheck {
     private SurfaceMinimapLoadedChunkProgressCheck() { }
 
     public static void main(String[] args) throws Exception {
-        Path root = Path.of("src/main/java/com/velorise/simplemap/client");
+        Path root = Path.of("../common/src/main/java/com/velorise/simplemap/client");
         String scanner = Files.readString(root.resolve("ChunkScanner.java"));
         String decoded = Files.readString(
                 root.resolve("cave/DecodedWorldChunkSource.java"));

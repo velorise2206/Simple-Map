@@ -7,8 +7,8 @@ import java.nio.file.Path;
 /** Static guard for PASS57 no-hole streaming invariants. */
 public final class HoleRecoveryPolicyCheck {
     public static void main(String[] args) throws Exception {
-        String root = Files.isDirectory(Path.of("src/main/java"))
-                ? "src/main/java/com/velorise/simplemap/client/" : "";
+        String root = Files.isDirectory(Path.of("../common/src/main/java"))
+                ? "../common/src/main/java/com/velorise/simplemap/client/" : "";
         String plan = Files.readString(Path.of(root + "MapRenderPlan.java"));
         String renderer = Files.readString(Path.of(root + "MapRenderer.java"));
         String textures = Files.readString(Path.of(root + "MapTextureManager.java"));

@@ -8,7 +8,7 @@ public final class ExactAtlasGutterCheck {
     private ExactAtlasGutterCheck() { }
 
     public static void main(String[] args) throws Exception {
-        Path root = Path.of("src/main/java/com/velorise/simplemap/client");
+        Path root = Path.of("../common/src/main/java/com/velorise/simplemap/client");
         String surface = Files.readString(root.resolve("lod/SurfaceLeafAtlas.java"));
         String cave = Files.readString(root.resolve("cave/CaveTextureAtlas.java"));
         String memory = Files.readString(root.resolve("MapMemoryBudgetPolicy.java"));

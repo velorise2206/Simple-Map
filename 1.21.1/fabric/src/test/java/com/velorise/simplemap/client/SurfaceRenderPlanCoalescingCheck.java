@@ -10,7 +10,7 @@ public final class SurfaceRenderPlanCoalescingCheck {
 
     public static void main(String[] args) throws Exception {
         String source = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/MapRenderer.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/MapRenderer.java"));
         require(source.contains("SURFACE_HIERARCHY_PLAN_REFRESH_NANOS = 250_000_000L")
                         && source.contains("SURFACE_PRESSURE_PLAN_REFRESH_NANOS = 400_000_000L")
                         && source.contains("caveMode, caveBranchOnly, hierarchyLevel")

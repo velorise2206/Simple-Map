@@ -43,7 +43,7 @@ public final class PhysicalDensityForegroundCompletionCheck {
                 "live render-distance halo lost its foreground completion budget");
 
         String cave = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/cave/UnifiedCaveTextureManager.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/cave/UnifiedCaveTextureManager.java"));
         require(cave.contains("CAVE_INACTIVE_VIEW_PRODUCTS_RETIRED")
                         && cave.contains("inactiveProducts")
                         && cave.contains("info.close()"),
@@ -54,7 +54,7 @@ public final class PhysicalDensityForegroundCompletionCheck {
 
     private static String read(String file) throws Exception {
         return Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/" + file));
+                "../common/src/main/java/com/velorise/simplemap/client/" + file));
     }
 
     private static void require(boolean condition, String message) {

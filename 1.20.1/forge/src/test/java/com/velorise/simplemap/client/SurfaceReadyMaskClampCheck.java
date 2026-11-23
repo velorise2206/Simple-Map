@@ -9,7 +9,7 @@ public final class SurfaceReadyMaskClampCheck {
 
     public static void main(String[] args) throws Exception {
         String manager = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/MapTextureManager.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/MapTextureManager.java"));
         require(manager.contains("required != MapPageLayout.FULL_SUBTILE_MASK")
                         && manager.contains("requestedSubtileMasks[index] = 0"),
                 "incomplete retained pages can still be attached to a Surface batch");

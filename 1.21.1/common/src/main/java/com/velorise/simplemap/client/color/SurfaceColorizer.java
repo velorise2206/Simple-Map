@@ -1,12 +1,12 @@
 package com.velorise.simplemap.client.color;
 import com.velorise.simplemap.client.cave.CaveTextureManager.CaveMapManager;
 import com.velorise.simplemap.client.cave.*;
+import com.velorise.simplemap.compat.BlockSpriteSampler;
+import com.velorise.simplemap.compat.MapCompat;
 import com.velorise.simplemap.client.cave.CaveTextureManager.CaveMapManager.CaveStateClassifier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
-import net.minecraft.client.renderer.block.model.BakedQuad;
-import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.ColorResolver;
@@ -1976,112 +1976,16 @@ public static final class MapVisualClassifier {
         }
 
         private static BakedModelSample sampleFromBakedModel(Minecraft minecraft, ResourceLocation blockId) {
-            if (minecraft.getBlockRenderer() == null) return null;
             Block block = BuiltInRegistries.BLOCK.get(blockId);
             if (block == null || block == Blocks.AIR) return null;
-            BlockState state = block.defaultBlockState();
-            BakedModel bakedModel = minecraft.getBlockRenderer().getBlockModel(state);
-            if (bakedModel == null) return null;
+            BlockSpriteSampler.SpriteInfo spriteInfo = MapCompat.sprites().samplePrimarySprite(block.defaultBlockState());
+            if (spriteInfo == null) return null;
 
-            RandomSource random = RandomSource.create(42L);
-            boolean upOrNullTinted = false;
-            boolean anyQuadTinted = false;
-            boolean hasUpQuads = false;
-            TextureAtlasSprite upTintedSprite = null;
-            TextureAtlasSprite upSprite = null;
-            TextureAtlasSprite nullTintedSprite = null;
-            TextureAtlasSprite nullSprite = null;
-            TextureAtlasSprite sideTintedSprite = null;
-            TextureAtlasSprite sideSprite = null;
-
-            try {
-                List<BakedQuad> upQuads = bakedModel.getQuads(state, Direction.UP, random);
-                if (upQuads != null && !upQuads.isEmpty()) {
-                    hasUpQuads = true;
-                    for (BakedQuad quad : upQuads) {
-                        if (quad == null) continue;
-                        TextureAtlasSprite sprite = quad.getSprite();
-                        if (upSprite == null && isUsableSprite(sprite)) {
-                            upSprite = sprite;
-                        }
-                        if (quad.isTinted()) {
-                            upOrNullTinted = true;
-                            anyQuadTinted = true;
-                            if (upTintedSprite == null && isUsableSprite(sprite)) {
-                                upTintedSprite = sprite;
-                            }
-                        }
-                    }
-                }
-            } catch (Throwable ignored) {
-            }
-
-            try {
-                random.setSeed(42L);
-                List<BakedQuad> generalQuads = bakedModel.getQuads(state, null, random);
-                if (generalQuads != null && !generalQuads.isEmpty()) {
-                    for (BakedQuad quad : generalQuads) {
-                        if (quad == null) continue;
-                        TextureAtlasSprite sprite = quad.getSprite();
-                        if (nullSprite == null && isUsableSprite(sprite)) {
-                            nullSprite = sprite;
-                        }
-                        if (quad.isTinted()) {
-                            upOrNullTinted = true;
-                            anyQuadTinted = true;
-                            if (nullTintedSprite == null && isUsableSprite(sprite)) {
-                                nullTintedSprite = sprite;
-                            }
-                        }
-                    }
-                }
-            } catch (Throwable ignored) {
-            }
-
-            for (int i = 1; i < QUAD_DIRECTIONS.length; i++) {
-                Direction dir = QUAD_DIRECTIONS[i];
-                try {
-                    random.setSeed(42L);
-                    List<BakedQuad> dirQuads = bakedModel.getQuads(state, dir, random);
-                    if (dirQuads == null) continue;
-                    for (BakedQuad quad : dirQuads) {
-                        if (quad == null) continue;
-                        TextureAtlasSprite sprite = quad.getSprite();
-                        if (sideSprite == null && isUsableSprite(sprite)) {
-                            sideSprite = sprite;
-                        }
-                        if (quad.isTinted()) {
-                            anyQuadTinted = true;
-                            if (sideTintedSprite == null && isUsableSprite(sprite)) {
-                                sideTintedSprite = sprite;
-                            }
-                        }
-                    }
-                } catch (Throwable ignored) {
-                }
-            }
-
-            TextureAtlasSprite chosen = upTintedSprite != null ? upTintedSprite
-                    : (upSprite != null ? upSprite
-                    : (nullTintedSprite != null ? nullTintedSprite
-                    : (nullSprite != null ? nullSprite
-                    : (sideTintedSprite != null ? sideTintedSprite : sideSprite))));
-            if (!isUsableSprite(chosen)) {
-                try {
-                    TextureAtlasSprite particle = bakedModel.getParticleIcon();
-                    if (isUsableSprite(particle)) {
-                        chosen = particle;
-                    }
-                } catch (Throwable ignored) {
-                }
-            }
-            if (!isUsableSprite(chosen)) return null;
-
-            ResourceLocation spriteName = chosen.contents().name();
+            ResourceLocation spriteName = ResourceLocation.fromNamespaceAndPath(
+                    spriteInfo.namespace(), spriteInfo.path());
             ImageSample imageSample = sampleTexture(minecraft, toTextureFile(spriteName));
             if (imageSample == null) return null;
-            boolean usesTint = hasUpQuads ? upOrNullTinted : anyQuadTinted;
-            return new BakedModelSample(imageSample, usesTint);
+            return new BakedModelSample(imageSample, spriteInfo.usesTint());
         }
 
         private static boolean isUsableSprite(TextureAtlasSprite sprite) {

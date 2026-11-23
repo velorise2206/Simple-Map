@@ -9,7 +9,7 @@ public final class SurfaceRectangularLiveHaloCheck {
 
     public static void main(String[] args) throws Exception {
         String scanner = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/ChunkScanner.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/ChunkScanner.java"));
         int seedStart = scanner.indexOf("private void seedForegroundSurfaceNeighborhood");
         int seedEnd = scanner.indexOf("private boolean claimSurfaceWriterPulse", seedStart);
         if (seedEnd < 0) seedEnd = scanner.indexOf("private", seedStart + 20);

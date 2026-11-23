@@ -9,7 +9,7 @@ public final class SurfacePacketIngressCoverageCheck {
 
     public static void main(String[] args) throws Exception {
         String mutation = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/MapMutationBus.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/MapMutationBus.java"));
         int start = mutation.indexOf("public synchronized void onChunkData");
         int end = mutation.indexOf("public synchronized void onChunkUnload", start);
         require(start >= 0 && end > start, "missing chunk-data mutation ingress");
@@ -21,7 +21,7 @@ public final class SurfacePacketIngressCoverageCheck {
         require(method.contains("isHotChunk(chunkX, chunkZ)"),
                 "Cave packet work lost its separate hot-window gate");
         String scanner = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/ChunkScanner.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/ChunkScanner.java"));
         require(scanner.contains("LOADED_SURFACE_QUEUE_LIMIT = 8_192"),
                 "Surface packet queue cannot hold one maximum rectangular render view");
         System.out.println("SURFACE_PASS108_PACKET_INGRESS_COVERAGE_PASS");

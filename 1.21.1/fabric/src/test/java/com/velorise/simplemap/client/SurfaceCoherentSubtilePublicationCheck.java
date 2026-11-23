@@ -9,7 +9,7 @@ public final class SurfaceCoherentSubtilePublicationCheck {
     private SurfaceCoherentSubtilePublicationCheck() { }
 
     public static void main(String[] args) throws Exception {
-        Path root = Path.of("src/main/java/com/velorise/simplemap/client");
+        Path root = Path.of("../common/src/main/java/com/velorise/simplemap/client");
         String manager = Files.readString(root.resolve("MapTextureManager.java"));
         String renderer = Files.readString(root.resolve("MapRenderer.java"));
         String atlas = Files.readString(root.resolve("lod/SurfaceLeafAtlas.java"));

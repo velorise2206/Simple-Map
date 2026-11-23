@@ -20,12 +20,12 @@ public final class SurfaceBiomeTintSeamCheck {
                 "biome-driven tint can still be frozen per 16x16 chunk");
 
         String scanner = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/ChunkScanner.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/ChunkScanner.java"));
         require(scanner.contains("visual.tintPolicy() != BlockTintPolicy.NONE")
                         && scanner.contains("return SurfaceTintData.NONE;"),
                 "scanner still persists transient standard biome tint");
         String cache = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/lod/LodBranchDiskCache.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/lod/LodBranchDiskCache.java"));
         require(cache.contains("private static final int VERSION = 11;"),
                 "old seam-bearing derived branch cache is still reusable");
         System.out.println("SURFACE_BIOME_TINT_SEAM_PASS");

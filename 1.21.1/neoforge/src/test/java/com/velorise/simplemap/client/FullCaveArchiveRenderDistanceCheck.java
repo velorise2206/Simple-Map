@@ -8,7 +8,7 @@ import java.nio.file.Path;
 /** Static regression guard for PASS67's Full-Cave and loaded-halo invariants. */
 public final class FullCaveArchiveRenderDistanceCheck {
     public static void main(String[] args) throws Exception {
-        Path client = Path.of("src/main/java/com/velorise/simplemap/client");
+        Path client = Path.of("../common/src/main/java/com/velorise/simplemap/client");
         String projection = Files.readString(client.resolve(
                 "cave/projection/CaveProjectionServiceV2.java"));
         String repository = Files.readString(client.resolve(

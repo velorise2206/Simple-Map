@@ -9,7 +9,7 @@ public final class FullscreenPanFreezeCheck {
     private FullscreenPanFreezeCheck() { }
 
     public static void main(String[] args) throws Exception {
-        Path client = Path.of("src/main/java/com/velorise/simplemap/client");
+        Path client = Path.of("../common/src/main/java/com/velorise/simplemap/client");
         String fbo = Files.readString(client.resolve("renderer/FullscreenMapFramebufferRenderer.java"));
         String screen = Files.readString(client.resolve("gui/MapScreen.java"));
         String policy = Files.readString(client.resolve("renderer/RetainedFullscreenFramePolicy.java"));

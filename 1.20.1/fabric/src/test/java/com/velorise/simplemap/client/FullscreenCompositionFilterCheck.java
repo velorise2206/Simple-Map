@@ -12,15 +12,15 @@ public final class FullscreenCompositionFilterCheck {
 
     public static void main(String[] args) throws Exception {
         String renderer = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/FullscreenMapFramebufferRenderer.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/FullscreenMapFramebufferRenderer.java"));
         String caveAtlas = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/cave/CaveAtlasTexture.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/cave/CaveAtlasTexture.java"));
         String caveBranch = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/cave/CaveBranchAtlas.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/cave/CaveBranchAtlas.java"));
         String surfaceBranch = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/lod/SurfaceBranchAtlas.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/lod/SurfaceBranchAtlas.java"));
         String surfaceLod = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/RegionSurfaceLodService.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/RegionSurfaceLodService.java"));
 
         require(renderer.contains("configureCompositionFilter(physicalDisplayScale")
                         && renderer.contains("physicalViewportWidth")

@@ -10,21 +10,21 @@ public final class SurfaceWaterColumnAuthorityCheck {
 
     public static void main(String[] args) throws Exception {
         String decoded = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/cave/DecodedWorldChunkSource.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/cave/DecodedWorldChunkSource.java"));
         require(decoded.contains("findConnectedWaterSurfaceY")
                         && decoded.contains("WORLD_SURFACE normally starts above the liquid surface")
                         && decoded.contains("visibleY = findConnectedWaterSurfaceY"),
                 "world-save Surface can still treat submerged plants as the water top");
 
         String scanner = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/ChunkScanner.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/ChunkScanner.java"));
         require(scanner.contains("findConnectedLiveWaterSurfaceY")
                         && scanner.contains("connectedSurfaceY = findConnectedLiveWaterSurfaceY")
                         && scanner.contains("enqueueLiveSurfaceAuthorityChunk"),
                 "live Surface water geometry/single authority path is missing");
 
         String colorizer = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/color/SurfaceColorizer.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/color/SurfaceColorizer.java"));
         require(colorizer.contains("String floorId = blockId(packed, blockPalette)")
                         && colorizer.contains("MapBlockData.waterDepth(packed)")
                         && colorizer.contains("0.25f + depth * 0.045f")

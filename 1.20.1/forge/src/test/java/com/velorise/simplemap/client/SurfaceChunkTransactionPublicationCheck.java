@@ -9,7 +9,7 @@ public final class SurfaceChunkTransactionPublicationCheck {
 
     public static void main(String[] args) throws Exception {
         String source = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/MapManager.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/MapManager.java"));
         require(source.contains("surfaceTransactionDirty[chunkIndex] = true")
                         && source.contains("if (!contentChanged && !completionChanged) return 0L")
                         && source.contains("surfaceTransactionDirty[chunkIndex] = false"),

@@ -15,7 +15,7 @@ public final class RetainedFramebufferBindingCheck {
     }
 
     private static void check(String file) throws Exception {
-        Path path = Path.of("src/main/java/com/velorise/simplemap/client", file);
+        Path path = Path.of("../common/src/main/java/com/velorise/simplemap/client", file);
         String source = Files.readString(path);
         String targetName = "backTarget";
         int clear = source.indexOf(targetName + ".clear(Minecraft.ON_OSX);");

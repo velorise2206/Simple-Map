@@ -19,7 +19,7 @@ public final class FramePacingHardGateCheck {
         String viewport = readClient("MapViewportCoordinator.java");
         String texture = readClient("MapTextureManager.java");
         String packetMixin = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/mixin/"
+                "../common/src/main/java/com/velorise/simplemap/mixin/"
                         + "SimpleMapClientPacketListenerMixin.java"));
 
         require(gate.contains("MOVEMENT_SETTLE_NANOS = 3_000_000_000L"),
@@ -109,12 +109,12 @@ public final class FramePacingHardGateCheck {
 
     private static String readClient(String file) throws Exception {
         return Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client", file));
+                "../common/src/main/java/com/velorise/simplemap/client", file));
     }
 
     private static String readCave(String file) throws Exception {
         return Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/cave", file));
+                "../common/src/main/java/com/velorise/simplemap/client/cave", file));
     }
 
     private static void require(boolean condition, String message) {

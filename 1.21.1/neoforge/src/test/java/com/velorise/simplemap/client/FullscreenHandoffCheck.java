@@ -11,7 +11,7 @@ public final class FullscreenHandoffCheck {
 
     public static void main(String[] args) throws Exception {
         String source = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/renderer/FullscreenMapFramebufferRenderer.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/renderer/FullscreenMapFramebufferRenderer.java"));
         require(source.contains("frontTarget") && source.contains("backTarget")
                         && source.contains("frontFrameValid")
                         && source.contains("nextColdRedrawAttemptNanos")

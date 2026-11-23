@@ -10,12 +10,12 @@ public final class CavePboPipelineCheck {
 
     public static void main(String[] args) throws Exception {
         String atlas = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/cave/CaveTextureAtlas.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/cave/CaveTextureAtlas.java"));
         require(atlas.contains("new CaveAtlasPboUploader()"),
                 "exact cave atlas must use the pooled PBO uploader");
 
         String uploader = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/gpu/CaveAtlasPboUploader.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/gpu/CaveAtlasPboUploader.java"));
         require(uploader.contains("PBO_RING_SIZE = 3"),
                 "PBO uploader must retain a non-blocking ring");
         require(uploader.contains("glBufferData")
@@ -26,7 +26,7 @@ public final class CavePboPipelineCheck {
                 "PBO uploader must preserve a direct driver fallback");
 
         String manager = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/cave/UnifiedCaveTextureManager.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/cave/UnifiedCaveTextureManager.java"));
         require(manager.contains("measuredFrameNanos * 7L / 12L")
                         && manager.contains("measuredFrameNanos / 5L"),
                 "cave uploads must use fullscreen/gameplay frame shares");

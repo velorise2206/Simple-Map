@@ -38,7 +38,7 @@ public final class RetainedMinimapHandoffPolicyCheck {
                         true, false, true),
                 "cold authority switch stayed blocked after coverage became ready");
         String renderer = Files.readString(Path.of(
-                "src/main/java/com/velorise/simplemap/client/renderer/MinimapFramebufferRenderer.java"));
+                "../common/src/main/java/com/velorise/simplemap/client/renderer/MinimapFramebufferRenderer.java"));
         require(renderer.contains("frontFrameValid")
                         && renderer.contains("nextColdRedrawAttemptNanos")
                         && renderer.contains("retainLastGood")
