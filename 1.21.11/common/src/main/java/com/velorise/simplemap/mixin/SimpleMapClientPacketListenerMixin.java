@@ -21,7 +21,7 @@ public abstract class SimpleMapClientPacketListenerMixin {
             "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(" +
             "Lnet/minecraft/network/protocol/Packet;" +
             "Lnet/minecraft/network/PacketListener;" +
-            "Lnet/minecraft/util/thread/BlockableEventLoop;)V";
+            "Lnet/minecraft/network/PacketProcessor;)V";
 
     @Inject(method = "handleBlockUpdate",
             at = @At(value = "INVOKE", target = ENSURE_CLIENT_THREAD,
