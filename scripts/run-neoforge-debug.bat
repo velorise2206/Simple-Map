@@ -58,7 +58,7 @@ if defined JAVA_HOME (
     echo [Environment] Using JDK 21 at: "%JAVA_HOME%"
     set "PATH=%JAVA_HOME%\bin;%PATH%"
 ) else (
-    echo [Warning] Khong tim thay JAVA_HOME co dinh, su dung Java mac dinh tren PATH.
+    echo [Warning] JAVA_HOME not found; using default Java from PATH.
 )
 
 :: Enable debug property environment variable

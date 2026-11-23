@@ -19,7 +19,7 @@ echo   0) Exit
 echo ---------------------------------------------------------------------
 echo   Phim nong trong game: F8 (HUD Overlay), F9 (Toggle Log), F10 (Mark Issue)
 echo =====================================================================
-set /p "CHOICE=Chon phien ban de khoi chay debug [1-4]: "
+set /p "CHOICE=Select version to launch in debug mode [1-4]: "
 
 :HANDLE_CHOICE
 if "%CHOICE%"=="1" goto :RUN_FABRIC_1211
