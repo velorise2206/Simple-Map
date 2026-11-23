@@ -56,5 +56,3 @@ gradle copy.properties
 # OS generated files
 .DS_Store
 Thumbs.db
-
-release-jars/

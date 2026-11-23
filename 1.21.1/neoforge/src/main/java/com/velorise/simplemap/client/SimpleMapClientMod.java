@@ -1,8 +1,8 @@
 package com.velorise.simplemap.client;
 import com.velorise.simplemap.client.cave.CaveTextureManager.CaveMapManager;
 import com.velorise.simplemap.client.MapManager.MapConfig;
-import com.velorise.simplemap.client.gui.MapScreen.MapConfigScreen;
-import com.velorise.simplemap.client.gui.MapScreen.MapConfigScreen.WaypointListScreen;
+import com.velorise.simplemap.client.gui.MapConfigScreen;
+import com.velorise.simplemap.client.gui.WaypointListScreen;
 import com.velorise.simplemap.client.waypoint.PinNavigation.WaypointManager.Waypoint;
 
 import com.velorise.simplemap.MapBookHooks;

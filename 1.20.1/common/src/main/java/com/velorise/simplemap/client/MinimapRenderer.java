@@ -1,7 +1,8 @@
 package com.velorise.simplemap.client;
 import com.velorise.simplemap.client.MapManager.MapConfig;
-import com.velorise.simplemap.client.gui.MapScreen.MapConfigScreen;
-import com.velorise.simplemap.client.gui.MapScreen.MapConfigScreen.WaypointListScreen;
+import com.velorise.simplemap.client.gui.BlockColorManagerScreen;
+import com.velorise.simplemap.client.gui.MapConfigScreen;
+import com.velorise.simplemap.client.gui.WaypointListScreen;
 import com.velorise.simplemap.client.waypoint.PinNavigation.WaypointManager;
 import com.velorise.simplemap.client.waypoint.PinNavigation.WaypointManager.Waypoint;
 import com.velorise.simplemap.client.cave.*;
@@ -93,8 +94,8 @@ public class MinimapRenderer {
                 || screen instanceof MapConfigScreen
                 || screen instanceof WaypointListScreen
                 || screen instanceof WaypointListScreen.AddWaypointScreen
-                || screen instanceof MapConfigScreen.BlockColorManagerScreen.BlockColorScreen
-                || screen instanceof MapConfigScreen.BlockColorManagerScreen) {
+                || screen instanceof BlockColorManagerScreen.BlockColorScreen
+                || screen instanceof BlockColorManagerScreen) {
             return false;
         }
         // Allow minimap overlay only on player inventory, container screens (chests,
