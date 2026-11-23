@@ -98,16 +98,9 @@ if defined LATEST_DIR (
     if exist "!LATEST_DIR!\events.jsonl" (
         echo   [x] !LATEST_DIR!\events.jsonl
     )
-    echo.
-    set /p "OPEN_DIR=Open the generated debug folder? [Y/N]: "
-    if /i "!OPEN_DIR!"=="Y" (
-        start "" "!LATEST_DIR!"
-    )
 ) else (
     echo [Telemetry Output] No recent debug folder found - you may not have joined a world.
 )
 
-echo.
-pause
 exit /b %EXITCODE%
 

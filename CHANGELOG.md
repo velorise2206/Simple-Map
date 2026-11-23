@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.5] - 2026-11-23
+
+### Fixed
+- **Snow & Surface Covers ([#8](https://github.com/velorise2206/Simple-Map/issues/8))**: Snow layers (1–8 layers), wool/moss carpets, and rails now render properly on the map without artificial 1-block cliff shadows, and snow layers no longer trigger false underground roof detection.
+- **Auto Night Mode**: Fixed inverted sky-brightness calculation in `MapRenderer` so daytime renders at full brightness while dusk/dawn transitions and night-time light glow work naturally.
+- **The End & Nether Roof (AUTO Cave Mode)**: Fixed The End being treated as a cave dimension in AUTO mode, and allowed AUTO mode in The Nether to switch to Surface view when standing on top of the Nether roof (`Y >= 127`).
+- **Mod Icon**: Added `logo.png` in shared resources and aligned `fabric.mod.json`, `mods.toml`, and `neoforge.mods.toml`, resolving the Mod Menu missing icon error on Fabric.
+- **Remote Dimension Pin**: Viewing another dimension now displays its saved red X pin marker while keeping guideline dots and distance labels limited to the active dimension.
+
+### Changed
+- **Visual Polish**: Improved shallow 1-block water tint blending (e.g., Swamp dirt/clay), made clear glass/glass panes transparent to show blocks beneath, and added biome foliage tinting for lily pads.
+- **Multi-Loader Architecture**: Consolidated `1.20.1` and `1.21.1` into shared `common/` modules with `PlatformBridge`, extracted `MapConfig`, split `MapScreen` into modular screens, and unified build/debug scripts in English.
+
+### Optimized
+- **VRAM & Render-Thread Stability**: Added centralized render-thread `GlTextureDeleter`, capped minimap FBO resolution to `<= 768x768` (4x less VRAM/fill-rate at 4x GUI scale), throttled far-zoom branch uploads to quarter-page milestones, skipped empty cave/daytime glow passes in `buildRenderPlan`, and reduced lock contention and per-page allocations.
+
+---
+
 ## [2.0.4.1] - 2026-11-12
 
 ### Fixed
