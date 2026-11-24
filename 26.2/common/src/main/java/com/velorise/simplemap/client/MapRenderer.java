@@ -3349,11 +3349,14 @@ public class MapRenderer {
             return 1.0f;
         }
 
-        // EnvironmentAttributes.SKY_LIGHT_LEVEL tracks client-side sky light in [4.0, 15.0]
-        // (15.0 during full daylight, 4.0 at midnight, updating dynamically across dusk/dawn).
-        float skyLight = mc.level.environmentAttributes()
-                .getDimensionValue(net.minecraft.world.attribute.EnvironmentAttributes.SKY_LIGHT_LEVEL);
-        float normalizedSun = Math.max(0.0f, Math.min(1.0f, (skyLight - 4.0f) / 11.0f));
+        // EnvironmentAttributes.SKY_LIGHT_FACTOR is the client-side visual sky-light
+        // multiplier in [0.0, 1.0] (interpolated from timelines + weather, matching vanilla Lightmap).
+        net.minecraft.core.BlockPos samplePos = mc.player != null
+                ? mc.player.blockPosition()
+                : net.minecraft.core.BlockPos.ZERO;
+        float skyFactor = mc.level.environmentAttributes()
+                .getValue(net.minecraft.world.attribute.EnvironmentAttributes.SKY_LIGHT_FACTOR, samplePos);
+        float normalizedSun = Math.max(0.0f, Math.min(1.0f, skyFactor));
         return ambient + (1.0f - ambient) * normalizedSun;
     }
 
@@ -3371,9 +3374,12 @@ public class MapRenderer {
                 && !CaveMode.isFullView(mc)) {
             int layerY = CaveMode.getLayerY(mc);
             if (layerY >= 56) {
-                float skyLight = mc.level.environmentAttributes()
-                        .getDimensionValue(net.minecraft.world.attribute.EnvironmentAttributes.SKY_LIGHT_LEVEL);
-                float normalizedSun = Math.max(0.0f, Math.min(1.0f, (skyLight - 4.0f) / 11.0f));
+                net.minecraft.core.BlockPos samplePos = mc.player != null
+                        ? mc.player.blockPosition()
+                        : net.minecraft.core.BlockPos.ZERO;
+                float skyFactor = mc.level.environmentAttributes()
+                        .getValue(net.minecraft.world.attribute.EnvironmentAttributes.SKY_LIGHT_FACTOR, samplePos);
+                float normalizedSun = Math.max(0.0f, Math.min(1.0f, skyFactor));
                 return 0.82f + 0.18f * normalizedSun;
             }
         }
