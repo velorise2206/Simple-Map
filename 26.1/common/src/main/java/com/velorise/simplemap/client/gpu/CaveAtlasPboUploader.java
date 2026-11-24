@@ -2,12 +2,15 @@ package com.velorise.simplemap.client.gpu;
 import com.velorise.simplemap.client.cave.*;
 
 import com.mojang.blaze3d.opengl.GlStateManager;
+import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.GpuTexture;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL13;
 import org.lwjgl.opengl.GL15;
 import org.lwjgl.opengl.GL21;
 
@@ -37,12 +40,33 @@ public final class CaveAtlasPboUploader implements AutoCloseable {
     private boolean pboEnabled = !Boolean.getBoolean("simplemap.disableCavePbo");
     private boolean closed;
 
-    /** Uploads one tightly packed rectangle from a larger ABGR source image. */
+    /** Uploads one tightly packed rectangle directly via Blaze3D CommandEncoder. */
+    public void upload(GpuTexture texture, int destinationX, int destinationY,
+            int width, int height, int[] source, int sourceStride,
+            int sourceX, int sourceY) {
+        RenderSystem.assertOnRenderThread();
+        if (closed || texture == null || width <= 0 || height <= 0 || source == null) return;
+        validateSourceBounds(source, sourceStride, sourceX, sourceY, width, height);
+        int byteCount = Math.multiplyExact(Math.multiplyExact(width, height),
+                Integer.BYTES);
+        ByteBuffer staging = buffers.acquire(byteCount);
+        try {
+            fillStaging(staging, source, sourceStride, sourceX, sourceY,
+                    width, height);
+            RenderSystem.getDevice().createCommandEncoder().writeToTexture(
+                    texture, staging, NativeImage.Format.RGBA,
+                    0, 0, destinationX, destinationY, width, height);
+        } finally {
+            buffers.release(staging);
+        }
+    }
+
+    /** Legacy int-handle upload retained for compatibility; prefer GpuTexture overload. */
     public void upload(int textureId, int destinationX, int destinationY,
             int width, int height, int[] source, int sourceStride,
             int sourceX, int sourceY) {
         RenderSystem.assertOnRenderThread();
-        if (closed || width <= 0 || height <= 0 || source == null) return;
+        if (closed || textureId <= 0 || width <= 0 || height <= 0 || source == null) return;
         validateSourceBounds(source, sourceStride, sourceX, sourceY, width, height);
         int byteCount = Math.multiplyExact(Math.multiplyExact(width, height),
                 Integer.BYTES);
@@ -113,6 +137,7 @@ public final class CaveAtlasPboUploader implements AutoCloseable {
             GL15.glBufferData(GL21.GL_PIXEL_UNPACK_BUFFER,
                     staging.remaining(), GL15.GL_STREAM_DRAW);
             GL15.glBufferSubData(GL21.GL_PIXEL_UNPACK_BUFFER, 0L, staging);
+            GlStateManager._activeTexture(GL13.GL_TEXTURE0);
             GlStateManager._bindTexture(textureId);
             preparePixelStore();
             GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0,
@@ -135,6 +160,7 @@ public final class CaveAtlasPboUploader implements AutoCloseable {
     private static void uploadDirect(int textureId, int destinationX,
             int destinationY, int width, int height, ByteBuffer staging) {
         staging.rewind();
+        GlStateManager._activeTexture(GL13.GL_TEXTURE0);
         GlStateManager._bindTexture(textureId);
         preparePixelStore();
         GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0,

@@ -42,6 +42,10 @@ public final class MapRenderPlan {
     private final List<Batch> baseBatches;
     private final List<Batch> glowBatches;
     private final MapGpuInstancePlan instancePlan;
+
+    public MapGpuInstancePlan instancePlan() {
+        return instancePlan;
+    }
     private final int[] basePhases;
     private final int[] glowPhases;
     private final long[] pendingRegions;

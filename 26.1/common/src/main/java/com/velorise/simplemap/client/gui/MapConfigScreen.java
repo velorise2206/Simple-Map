@@ -1294,7 +1294,7 @@ public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int
         guiGraphics.outline(x, y, size, size, borderColor);
         String text = Component.translatable("gui.simplemap.preview.minimap_disabled").getString();
         guiGraphics.text(this.font, text, x + (size - this.font.width(text)) / 2, y + (size - 9) / 2,
-                0xAAAAAA, false);
+                0xFFAAAAAA, false);
     }
 
     // 2. Render Coordinates (Coords)
@@ -1329,7 +1329,7 @@ public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int
         int rawWidth = this.font.width(coords);
         guiGraphics.fill(-3, -2, rawWidth + 3, 9, 0x88000000);
         int coordsColor = MapRenderer.getInstance().getActualPointerColor(MapConfig.coordsTextColor);
-        guiGraphics.text(this.font, coords, 0, 0, coordsColor, false);
+        guiGraphics.text(this.font, coords, 0, 0, (coordsColor & 0xFF000000) == 0 ? (0xFF000000 | coordsColor) : coordsColor, false);
         guiGraphics.pose().popMatrix();
 
         boolean isCoordsHovered = mouseX >= cx - 3 && mouseX < cx + textWidth + 3 && mouseY >= cy - 2
@@ -1361,7 +1361,7 @@ public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int
         guiGraphics.pose().pushMatrix();
         guiGraphics.pose().translate((float)(cx), (float)(cy));
         guiGraphics.pose().scale((float)(MapConfig.coordsScale), (float)(MapConfig.coordsScale));
-        guiGraphics.text(this.font, text, 0, 0, 0xAAAAAA, false);
+        guiGraphics.text(this.font, text, 0, 0, 0xFFAAAAAA, false);
         guiGraphics.pose().popMatrix();
 
         boolean isCoordsHovered = mouseX >= cx - 3 && mouseX < cx + placeholderW + 3 && mouseY >= cy - 2
@@ -1392,7 +1392,7 @@ public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int
                     ? Component.translatable("gui.simplemap.hint.drag_move").getString()
                     : (activeTab <= 1 ? Component.translatable("gui.simplemap.hint.click_drag").getString() : ""));
     if (!hint.isEmpty()) {
-        guiGraphics.centeredText(this.font, hint, panelCenterX, hintY, 0x808080);
+        guiGraphics.centeredText(this.font, hint, panelCenterX, hintY, 0xFF808080);
     }
 }
 
@@ -1567,7 +1567,7 @@ private class ColorSwatchButton extends AbstractButton {
     }
 }
 
-// Custom slider with public setValue() for external sync from EditBox
+// Custom slider with silent setter for external sync from EditBox (must NOT override AbstractSliderButton.setValue)
 private static class SimpleSlider extends AbstractSliderButton {
     private final java.util.function.Consumer<Double> onChange;
     private final java.util.function.Function<Double, String> labelProvider;
@@ -1584,7 +1584,7 @@ private static class SimpleSlider extends AbstractSliderButton {
      * Called from the EditBox responder to push a new normalised value (0..1)
      * into the slider WITHOUT triggering applyValue() to avoid a feedback loop.
      */
-    public void setValue(double newValue) {
+    public void setSliderValueSilently(double newValue) {
         this.value = Math.max(0.0, Math.min(1.0, newValue));
         updateMessage();
     }
@@ -1664,7 +1664,7 @@ private void drawDirectionLetterHelper(GuiGraphicsExtractor guiGraphics, Minecra
     guiGraphics.pose().scale((float)(0.7f), (float)(0.7f));
 
     int textWidth = mc.font.width(letter);
-    guiGraphics.text(mc.font, letter, -textWidth / 2, -4, color, true);
+    guiGraphics.text(mc.font, letter, -textWidth / 2, -4, (color & 0xFF000000) == 0 ? (0xFF000000 | color) : color, true);
     guiGraphics.pose().popMatrix();
 }
 

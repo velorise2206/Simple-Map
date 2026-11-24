@@ -419,30 +419,8 @@ public static final class MapGpuInstanceRenderer {
             int w = Math.max(1, Math.round(plan.width(index)));
             int h = Math.max(1, Math.round(plan.height(index)));
 
-            if (dynamicSurfaceCoverage && coverage != 0xFFFF) {
-                float uvWidth = localU1 - localU0;
-                float uvHeight = localV1 - localV0;
-                float cellW = plan.width(index) * 0.25f;
-                float cellH = plan.height(index) * 0.25f;
-                for (int cellZ = 0; cellZ < 4; cellZ++) {
-                    for (int cellX = 0; cellX < 4; cellX++) {
-                        int bit = 1 << (cellZ * 4 + cellX);
-                        if ((coverage & bit) == 0) continue;
-                        float cu0 = entry.sourceX() + (localU0 + uvWidth * cellX * 0.25f) * sourceSize;
-                        float cv0 = entry.sourceY() + (localV0 + uvHeight * cellZ * 0.25f) * sourceSize;
-                        int cw = Math.max(1, Math.round(uvWidth * 0.25f * sourceSize));
-                        int ch = Math.max(1, Math.round(uvHeight * 0.25f * sourceSize));
-                        graphics.blit(RenderPipelines.GUI_TEXTURED, texture,
-                                Math.round(plan.x(index) + cellX * cellW),
-                                Math.round(plan.y(index) + cellZ * cellH),
-                                cu0, cv0,
-                                Math.max(1, Math.round(cellW)), Math.max(1, Math.round(cellH)),
-                                cw, ch, atlasSize, atlasSize);
-                        submissions++;
-                    }
-                }
-                continue;
-            }
+            // Unexplored subtiles in the atlas have alpha=0, so a single blit per page
+            // renders partial coverage identically while cutting GUI submissions up to 16x.
 
             float uPx = entry.sourceX() + localU0 * sourceSize;
             float vPx = entry.sourceY() + localV0 * sourceSize;

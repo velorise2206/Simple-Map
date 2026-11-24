@@ -19,6 +19,9 @@ neoForge {
     runs {
         client {
             client()
+            if (Boolean.getBoolean("simplemap.debug") || "true".equalsIgnoreCase(System.getenv("SIMPLEMAP_DEBUG")) || project.hasProperty("simplemap.debug")) {
+                systemProperty 'simplemap.debug', 'true'
+            }
         }
         server {
             server()

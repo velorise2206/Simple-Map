@@ -331,5 +331,6 @@
   "gui.simplemap.value.frame_vanilla": "Bản đồ Vanilla",
   "gui.simplemap.value.frame_frameless": "Không viền",
   "gui.simplemap.tooltip.minimap_frame": "Chuyển đổi giữa viền tối giản thanh mảnh, viền giấy da bản đồ vanilla và chế độ không viền.",
-  "gui.simplemap.msg.minimap_frame": "Kiểu viền minimap: %s"
+  "gui.simplemap.msg.minimap_frame": "Kiểu viền minimap: %s",
+  "key.category.simplemap.general": "Bản Đồ Đơn Giản (Simple Map)"
 }

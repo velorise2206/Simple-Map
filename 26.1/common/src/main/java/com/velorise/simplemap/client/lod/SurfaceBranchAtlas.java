@@ -136,7 +136,7 @@ final class SurfaceBranchAtlas {
         AtlasGutter.copyOnePixelBorder(pixels, SIZE, gutteredUpload);
         int atlasX = (slot % slotColumns) * PITCH;
         int atlasY = (slot / slotColumns) * PITCH;
-        uploader.upload(textureId, atlasX, atlasY, PITCH, PITCH,
+        uploader.upload(texture.getTexture(), atlasX, atlasY, PITCH, PITCH,
                 gutteredUpload, PITCH, 0, 0);
     }
 

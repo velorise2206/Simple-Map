@@ -19,6 +19,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class MapConfig {
     /** Temporary common zoom-out floor for fullscreen and minimap views. */
@@ -326,77 +330,143 @@ public class MapConfig {
         if (rewriteMigratedConfig) save();
     }
 
-    public static synchronized void save() {
-        if (configFile == null) return;
-        Path target = configFile.toPath();
-        Path temporary = target.resolveSibling(target.getFileName() + ".tmp");
+    private record PendingSave(Path target, ConfigData data) {}
+
+    private static final Object SAVE_IO_LOCK = new Object();
+    private static final AtomicReference<PendingSave> PENDING_SAVE = new AtomicReference<>();
+    private static final AtomicBoolean SAVE_SCHEDULED = new AtomicBoolean(false);
+    private static final AtomicBoolean SHUTDOWN_HOOK_REGISTERED = new AtomicBoolean(false);
+    private static final ExecutorService SAVE_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "SimpleMap-Config-IO");
+        thread.setDaemon(true);
+        return thread;
+    });
+
+    private static void ensureShutdownHook() {
+        if (SHUTDOWN_HOOK_REGISTERED.compareAndSet(false, true)) {
+            Runtime.getRuntime().addShutdownHook(new Thread(MapConfig::flushPendingSaves, "SimpleMap-Config-Flush"));
+        }
+    }
+
+    public static void save() {
+        File currentFile = configFile;
+        if (currentFile == null) return;
+        ensureShutdownHook();
+        ConfigData data = snapshotConfigData();
+        PENDING_SAVE.set(new PendingSave(currentFile.toPath(), data));
+        scheduleSaveDrain();
+    }
+
+    public static void flushPendingSaves() {
+        PendingSave pending;
+        while ((pending = PENDING_SAVE.getAndSet(null)) != null) {
+            writeConfigAtomically(pending.target(), pending.data());
+        }
+    }
+
+    private static void scheduleSaveDrain() {
+        if (!SAVE_SCHEDULED.compareAndSet(false, true)) return;
         try {
-            Files.createDirectories(target.getParent());
-            try (Writer writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) {
-                ConfigData data = new ConfigData();
-                data.minimapEnabled = minimapEnabled;
-                data.minimapXPercent = minimapXPercent;
-                data.minimapYPercent = minimapYPercent;
-                data.minimapAnchor = minimapAnchor;
-                data.minimapOffsetX = minimapOffsetX;
-                data.minimapOffsetY = minimapOffsetY;
-                data.minimapSize = minimapSize;
-                data.minimapZoom = minimapZoom;
-                data.scanPointsPerTick = scanPointsPerTick;
-                data.mapRevealMode = 1;
-                data.scanEngineVersion = scanEngineVersion;
-                data.blockColourMode = blockColourMode;
-                data.displayFlowers = displayFlowers;
-                data.terrainSlopes = terrainSlopes;
-                data.cursorBiomeEnabled = cursorBiomeEnabled;
-                data.cursorBlockEnabled = cursorBlockEnabled;
+            SAVE_EXECUTOR.execute(MapConfig::drainPendingSaves);
+        } catch (Throwable rejected) {
+            SAVE_SCHEDULED.set(false);
+            flushPendingSaves();
+        }
+    }
 
-                data.playerMarkerScale = playerMarkerScale;
-                data.playerMarkerMode = playerMarkerMode;
-                data.playerPointerColor = playerPointerColor;
-
-                data.coordsEnabled = coordsEnabled;
-                data.coordsXPercent = coordsXPercent;
-                data.coordsYPercent = coordsYPercent;
-                data.coordsScale = coordsScale;
-                data.coordsTextColor = coordsTextColor;
-
-                data.waypointScale = waypointScale;
-                data.pinScale = pinScale;
-                data.autoClearPin = autoClearPin;
-                data.waypointsVisible = waypointsVisible;
-                data.minimapWaypointsVisible = minimapWaypointsVisible;
-                data.createDeathWaypoint = createDeathWaypoint;
-                data.maxDeathWaypoints = maxDeathWaypoints;
-
-                data.minimapRotate = minimapRotate;
-                data.minimapCircle = minimapCircle;
-                data.showMinimapInScreens = showMinimapInScreens;
-                data.minimapNightMode = minimapNightMode;
-                data.minimapFrameStyle = minimapFrameStyle;
-                data.minimapRingColor = minimapRingColor;
-                data.mapColorProfile = mapColorProfile;
-                data.savedColors = new ArrayList<>(savedColors);
-                data.blockColorOverrides = new LinkedHashMap<>(blockColorOverrides);
-
-                data.compassLettersVisible = compassLettersVisible;
-                data.compassLetterColor = compassLetterColor;
-
-                data.alwaysRescanExplored = alwaysRescanExplored;
-                data.fastFullscreenLoading = fastFullscreenLoading;
-                data.performanceDefaultsVersion = CURRENT_PERFORMANCE_DEFAULTS_VERSION;
-                data.localCaveMapMode = localCaveMapMode;
-                data.caveDimensionModes = new LinkedHashMap<>(caveDimensionModes);
-                data.caveDimensionManualY = new LinkedHashMap<>(caveDimensionManualY);
-                data.caveAutoZoom = caveAutoZoom;
-                GSON.toJson(data, writer);
+    private static void drainPendingSaves() {
+        try {
+            PendingSave next;
+            while ((next = PENDING_SAVE.getAndSet(null)) != null) {
+                writeConfigAtomically(next.target(), next.data());
             }
-            moveReplacing(temporary, target);
-        } catch (IOException exception) {
-            LOGGER.error("Failed to save map config atomically", exception);
+        } finally {
+            SAVE_SCHEDULED.set(false);
+            if (PENDING_SAVE.get() != null) {
+                scheduleSaveDrain();
+            }
+        }
+    }
+
+    private static synchronized ConfigData snapshotConfigData() {
+        ConfigData data = new ConfigData();
+        data.minimapEnabled = minimapEnabled;
+        data.minimapXPercent = minimapXPercent;
+        data.minimapYPercent = minimapYPercent;
+        data.minimapAnchor = minimapAnchor;
+        data.minimapOffsetX = minimapOffsetX;
+        data.minimapOffsetY = minimapOffsetY;
+        data.minimapSize = minimapSize;
+        data.minimapZoom = minimapZoom;
+        data.scanPointsPerTick = scanPointsPerTick;
+        data.mapRevealMode = 1;
+        data.scanEngineVersion = scanEngineVersion;
+        data.blockColourMode = blockColourMode;
+        data.displayFlowers = displayFlowers;
+        data.terrainSlopes = terrainSlopes;
+        data.cursorBiomeEnabled = cursorBiomeEnabled;
+        data.cursorBlockEnabled = cursorBlockEnabled;
+
+        data.playerMarkerScale = playerMarkerScale;
+        data.playerMarkerMode = playerMarkerMode;
+        data.playerPointerColor = playerPointerColor;
+
+        data.coordsEnabled = coordsEnabled;
+        data.coordsXPercent = coordsXPercent;
+        data.coordsYPercent = coordsYPercent;
+        data.coordsScale = coordsScale;
+        data.coordsTextColor = coordsTextColor;
+
+        data.waypointScale = waypointScale;
+        data.pinScale = pinScale;
+        data.autoClearPin = autoClearPin;
+        data.waypointsVisible = waypointsVisible;
+        data.minimapWaypointsVisible = minimapWaypointsVisible;
+        data.createDeathWaypoint = createDeathWaypoint;
+        data.maxDeathWaypoints = maxDeathWaypoints;
+
+        data.minimapRotate = minimapRotate;
+        data.minimapCircle = minimapCircle;
+        data.showMinimapInScreens = showMinimapInScreens;
+        data.minimapNightMode = minimapNightMode;
+        data.minimapFrameStyle = minimapFrameStyle;
+        data.minimapRingColor = minimapRingColor;
+        data.mapColorProfile = mapColorProfile;
+        data.savedColors = new ArrayList<>(savedColors);
+        data.blockColorOverrides = new LinkedHashMap<>(blockColorOverrides);
+
+        data.compassLettersVisible = compassLettersVisible;
+        data.compassLetterColor = compassLetterColor;
+
+        data.alwaysRescanExplored = alwaysRescanExplored;
+        data.fastFullscreenLoading = fastFullscreenLoading;
+        data.performanceDefaultsVersion = CURRENT_PERFORMANCE_DEFAULTS_VERSION;
+        data.localCaveMapMode = localCaveMapMode;
+        data.caveDimensionModes = new LinkedHashMap<>(caveDimensionModes);
+        data.caveDimensionManualY = new LinkedHashMap<>(caveDimensionManualY);
+        data.caveAutoZoom = caveAutoZoom;
+        return data;
+    }
+
+    private static void writeConfigAtomically(Path target, ConfigData data) {
+        if (target == null || data == null) return;
+        Path temporary = target.resolveSibling(target.getFileName() + ".tmp");
+        synchronized (SAVE_IO_LOCK) {
             try {
-                Files.deleteIfExists(temporary);
-            } catch (IOException ignored) {
+                Path parent = target.getParent();
+                if (parent != null) {
+                    Files.createDirectories(parent);
+                }
+                try (Writer writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) {
+                    GSON.toJson(data, writer);
+                }
+                moveReplacing(temporary, target);
+            } catch (IOException exception) {
+                LOGGER.error("Failed to save map config atomically", exception);
+                try {
+                    Files.deleteIfExists(temporary);
+                } catch (IOException ignored) {
+                }
             }
         }
     }

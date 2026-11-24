@@ -632,8 +632,8 @@ public class MapScreen extends Screen {
                 : "gui.simplemap.map_locked.craft_book").getString();
             int tw1 = this.font.width(title);
             int tw2 = this.font.width(subtitle);
-            guiGraphics.text(this.font, title, (this.width - tw1) / 2, this.height / 2 - 20, 0xFF5555, false);
-            guiGraphics.text(this.font, subtitle, (this.width - tw2) / 2, this.height / 2, 0xAAAAAA, false);
+            guiGraphics.text(this.font, title, (this.width - tw1) / 2, this.height / 2 - 20, 0xFFFF5555, false);
+            guiGraphics.text(this.font, subtitle, (this.width - tw2) / 2, this.height / 2, 0xFFAAAAAA, false);
             return;
         }
 
@@ -738,46 +738,87 @@ public class MapScreen extends Screen {
         }
     }
 
-    static void drawSolidCircleHelper(GuiGraphicsExtractor guiGraphics, float cx, float cy, float radius, int numSegments,
-            int color, float z) {
-        if (radius <= 0.5f) return;
-        int rInt = (int) Math.ceil(radius);
-        float rSq = radius * radius;
-        for (int dy = -rInt; dy <= rInt; dy++) {
-            float dxSq = rSq - dy * dy;
-            if (dxSq <= 0.0f) continue;
-            int dx = (int) Math.floor(Math.sqrt(dxSq));
-            int y = Math.round(cy) + dy;
-            guiGraphics.fill(Math.round(cx) - dx, y, Math.round(cx) + dx + 1, y + 1, color);
+    private static final java.util.Map<String, net.minecraft.resources.Identifier> CIRCLE_TEX_CACHE =
+            new java.util.LinkedHashMap<>(16, 0.75f, true) {
+                @Override
+                protected boolean removeEldestEntry(java.util.Map.Entry<String, net.minecraft.resources.Identifier> eldest) {
+                    if (size() > 32) {
+                        final net.minecraft.resources.Identifier evicted = eldest.getValue();
+                        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+                        if (mc != null) {
+                            mc.execute(() -> {
+                                if (mc.getTextureManager() != null) {
+                                    mc.getTextureManager().release(evicted);
+                                }
+                            });
+                        }
+                        return true;
+                    }
+                    return false;
+                }
+            };
+    private static int circleTexCounter = 0;
+
+    private static net.minecraft.resources.Identifier getOrCreateCircleTexture(int texSize, float innerFrac, int color) {
+        int safeColor = (color & 0xFF000000) == 0 ? (0xFF000000 | color) : color;
+        int innerBucket = Math.round(innerFrac * 200.0f);
+        String key = texSize + ":" + innerBucket + ":" + safeColor;
+        net.minecraft.resources.Identifier existing = CIRCLE_TEX_CACHE.get(key);
+        if (existing != null) return existing;
+
+        com.mojang.blaze3d.platform.NativeImage img = new com.mojang.blaze3d.platform.NativeImage(texSize, texSize, true);
+        int baseA = (safeColor >>> 24) & 0xFF;
+        int rgb = safeColor & 0x00FFFFFF;
+        float half = texSize * 0.5f;
+        float outerR = half - 1.0f;
+        float innerR = innerFrac <= 0.0f ? -2.0f : outerR * innerFrac;
+        for (int py = 0; py < texSize; py++) {
+            float dy = (py + 0.5f) - half;
+            for (int px = 0; px < texSize; px++) {
+                float dx = (px + 0.5f) - half;
+                float dist = (float) Math.sqrt(dx * dx + dy * dy);
+                float outerCov = Math.max(0.0f, Math.min(1.0f, outerR - dist + 0.5f));
+                float innerCov = innerR < 0.0f ? 1.0f : Math.max(0.0f, Math.min(1.0f, dist - innerR + 0.5f));
+                float cov = outerCov * innerCov;
+                int a = Math.round(baseA * cov);
+                img.setPixel(px, py, a > 0 ? ((a << 24) | rgb) : 0);
+            }
         }
+        final int texNum = ++circleTexCounter;
+        net.minecraft.client.renderer.texture.DynamicTexture tex =
+                new net.minecraft.client.renderer.texture.DynamicTexture(() -> "simplemap_circle_" + texNum, img);
+        net.minecraft.resources.Identifier id = net.minecraft.resources.Identifier.fromNamespaceAndPath(
+                "simplemap", "dynamic/circle_" + texNum);
+        net.minecraft.client.Minecraft.getInstance().getTextureManager().register(id, tex);
+        CIRCLE_TEX_CACHE.put(key, id);
+        return id;
     }
 
-    static void drawCircleRing(GuiGraphicsExtractor guiGraphics, float cx, float cy, float r1, float r2, int numSegments,
+    public static void drawSolidCircleHelper(GuiGraphicsExtractor guiGraphics, float cx, float cy, float radius, int numSegments,
+            int color, float z) {
+        if (radius <= 0.5f) return;
+        int drawSize = Math.max(2, Math.round(radius * 2.0f));
+        int texSize = drawSize <= 32 ? 32 : (drawSize <= 96 ? 128 : 256);
+        net.minecraft.resources.Identifier id = getOrCreateCircleTexture(texSize, 0.0f, color);
+        int x0 = Math.round(cx - drawSize * 0.5f);
+        int y0 = Math.round(cy - drawSize * 0.5f);
+        guiGraphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, id,
+                x0, y0, 0.0f, 0.0f, drawSize, drawSize, texSize, texSize, texSize, texSize);
+    }
+
+    public static void drawCircleRing(GuiGraphicsExtractor guiGraphics, float cx, float cy, float r1, float r2, int numSegments,
             int color) {
         float innerR = Math.min(r1, r2);
         float outerR = Math.max(r1, r2);
         if (outerR <= 0.5f) return;
-        int rInt = (int) Math.ceil(outerR);
-        float outSq = outerR * outerR;
-        float inSq = innerR * innerR;
-        int icx = Math.round(cx);
-        int icy = Math.round(cy);
-        for (int dy = -rInt; dy <= rInt; dy++) {
-            float outDxSq = outSq - dy * dy;
-            if (outDxSq <= 0.0f) continue;
-            int outDx = (int) Math.floor(Math.sqrt(outDxSq));
-            int y = icy + dy;
-            float inDxSq = inSq - dy * dy;
-            if (inDxSq <= 0.0f) {
-                guiGraphics.fill(icx - outDx, y, icx + outDx + 1, y + 1, color);
-            } else {
-                int inDx = (int) Math.ceil(Math.sqrt(inDxSq));
-                if (outDx >= inDx) {
-                    guiGraphics.fill(icx - outDx, y, icx - inDx + 1, y + 1, color);
-                    guiGraphics.fill(icx + inDx, y, icx + outDx + 1, y + 1, color);
-                }
-            }
-        }
+        int drawSize = Math.max(2, Math.round(outerR * 2.0f));
+        int texSize = drawSize <= 96 ? 128 : 256;
+        float innerFrac = Math.max(0.0f, Math.min(0.98f, innerR / outerR));
+        net.minecraft.resources.Identifier id = getOrCreateCircleTexture(texSize, innerFrac, color);
+        int x0 = Math.round(cx - drawSize * 0.5f);
+        int y0 = Math.round(cy - drawSize * 0.5f);
+        guiGraphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, id,
+                x0, y0, 0.0f, 0.0f, drawSize, drawSize, texSize, texSize, texSize, texSize);
     }
 
     private static class BlockInfo {
@@ -898,16 +939,16 @@ public class MapScreen extends Screen {
         guiGraphics.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight, 0x88000000);
         int lineY = panelY + 3;
         guiGraphics.text(this.font, coordText,
-                panelX + (panelWidth - coordWidth) / 2, lineY, 0xFFFFFF, false);
+                panelX + (panelWidth - coordWidth) / 2, lineY, 0xFFFFFFFF, false);
         lineY += 10;
         if (blockText != null) {
             guiGraphics.text(this.font, blockText,
-                    panelX + (panelWidth - blockWidth) / 2, lineY, 0xD8D8D8, false);
+                    panelX + (panelWidth - blockWidth) / 2, lineY, 0xFFD8D8D8, false);
             lineY += 10;
         }
         if (biomeText != null) {
             guiGraphics.text(this.font, biomeText,
-                    panelX + (panelWidth - biomeWidth) / 2, lineY, 0xA8D69C, false);
+                    panelX + (panelWidth - biomeWidth) / 2, lineY, 0xFFA8D69C, false);
         }
 
         drawZoomPanel(guiGraphics);

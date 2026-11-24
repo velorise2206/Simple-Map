@@ -130,12 +130,12 @@ public final class SurfaceLeafAtlas {
         int atlasY = (slot / SLOT_COLUMNS) * PITCH;
         if (colorPixels != null && colorPixels.length >= SIZE * SIZE) {
             AtlasGutter.copyOnePixelBorder(colorPixels, SIZE, gutteredColor);
-            colorUploader.upload(colorTextureId, atlasX, atlasY, PITCH, PITCH,
+            colorUploader.upload(colorTexture.getTexture(), atlasX, atlasY, PITCH, PITCH,
                     gutteredColor, PITCH, 0, 0);
         }
         if (glowPixels != null && glowPixels.length >= SIZE * SIZE) {
             AtlasGutter.copyOnePixelBorder(glowPixels, SIZE, gutteredGlow);
-            glowUploader.upload(glowTextureId, atlasX, atlasY, PITCH, PITCH,
+            glowUploader.upload(glowTexture.getTexture(), atlasX, atlasY, PITCH, PITCH,
                     gutteredGlow, PITCH, 0, 0);
         }
     }

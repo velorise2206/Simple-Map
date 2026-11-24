@@ -331,5 +331,6 @@
   "gui.simplemap.value.frame_vanilla": "Vanilla Map",
   "gui.simplemap.value.frame_frameless": "Frameless",
   "gui.simplemap.tooltip.minimap_frame": "Switch between sleek minimal border, vanilla parchment map frame, and frameless mode.",
-  "gui.simplemap.msg.minimap_frame": "Minimap frame: %s"
+  "gui.simplemap.msg.minimap_frame": "Minimap frame: %s",
+  "key.category.simplemap.general": "Simple Map"
 }

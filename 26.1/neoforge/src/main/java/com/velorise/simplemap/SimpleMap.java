@@ -46,7 +46,8 @@ import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.client.event.RenderGuiEvent;
+import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -148,6 +149,15 @@ public class SimpleMap {
         @SubscribeEvent
         public static void onClientSetup(FMLClientSetupEvent event) {
             event.enqueueWork(MapConfig::init);
+        }
+
+        @SubscribeEvent
+        public static void onRegisterGuiLayers(RegisterGuiLayersEvent event) {
+            event.registerAbove(
+                    VanillaGuiLayers.CAMERA_OVERLAYS,
+                    net.minecraft.resources.Identifier.fromNamespaceAndPath(MODID, "minimap"),
+                    (guiGraphics, deltaTracker) -> ClientGameEvents.renderHudLayer(
+                            guiGraphics, deltaTracker.getGameTimeDeltaPartialTick(true)));
         }
 
         @SubscribeEvent
@@ -553,29 +563,20 @@ public class SimpleMap {
             discard(ClientModEvents.CENTER_FULL_MAP_KEY);
         }
 
-        @SubscribeEvent
-        public static void onRenderGui(RenderGuiEvent.Post event) {
+        public static void renderHudLayer(net.minecraft.client.gui.GuiGraphicsExtractor guiGraphics, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
-            /*
-             * RenderGui and ScreenEvent are not guaranteed to advance as one paired
-             * callback on every Minecraft screen. Give each physical frame exactly
-             * one owner: HUD frames are owned here, screen frames by onRenderScreen.
-             * Reusing the last HUD frame id while a screen was open caused the
-             * publication coordinator to reject every later cave upload as a
-             * duplicate frame until the screen changed or closed.
-             */
             if (mc.screen == null) {
                 MapPerformanceGovernor.getInstance().onFrame();
                 ChunkScanner.getInstance().onForegroundFrame(mc,
                         SimpleMap.isMapUnlocked(mc.player));
-                MinimapRenderer.getInstance().renderHUD(event.getGuiGraphics(), 1.0f);
-                MapTeleportController.renderTransition(event.getGuiGraphics());
+                MinimapRenderer.getInstance().renderHUD(guiGraphics, partialTick);
+                MapTeleportController.renderTransition(guiGraphics);
                 if (mc.level != null && mc.player != null) {
                     long frameId = ++mapRenderFrameId;
                     MapViewportCoordinator.getInstance().drainPublicationFrame(frameId);
                     MapArchitectureCoordinator.getInstance().onFrameBoundary(frameId);
                 }
-                MapDebugOverlay.render(event.getGuiGraphics());
+                MapDebugOverlay.render(guiGraphics);
             }
         }
 

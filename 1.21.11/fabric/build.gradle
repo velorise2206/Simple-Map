@@ -62,3 +62,24 @@ sourceSets {
         resources.srcDirs += ['../common/src/main/resources']
     }
 }
+
+
+loom {
+    runs {
+        client {
+            client()
+            setConfigName("Fabric Client")
+            ideConfigGenerated(true)
+            runDir("run")
+            if (Boolean.getBoolean("simplemap.debug") || "true".equalsIgnoreCase(System.getenv("SIMPLEMAP_DEBUG")) || project.hasProperty("simplemap.debug")) {
+                property "simplemap.debug", "true"
+            }
+        }
+        server {
+            server()
+            setConfigName("Fabric Server")
+            ideConfigGenerated(true)
+            runDir("run")
+        }
+    }
+}

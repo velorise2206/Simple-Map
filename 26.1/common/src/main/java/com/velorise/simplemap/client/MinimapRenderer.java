@@ -324,7 +324,7 @@ public class MinimapRenderer {
             int rawWidth = mc.font.width(coords);
             guiGraphics.fill(-3, -2, rawWidth + 3, 9, 0x88000000);
             int coordsColor = MapRenderer.getInstance().getActualPointerColor(MapConfig.coordsTextColor);
-            guiGraphics.text(mc.font, coords, 0, 0, coordsColor, false);
+            guiGraphics.text(mc.font, coords, 0, 0, (coordsColor & 0xFF000000) == 0 ? (0xFF000000 | coordsColor) : coordsColor, false);
             guiGraphics.pose().popMatrix();
         }
 
@@ -408,37 +408,9 @@ public class MinimapRenderer {
                         guiGraphics, x, y, size, interpX, interpZ, effectiveZoom,
                         MapConfig.minimapRotate, partialTick);
         if (!renderedViaFbo) {
-            boolean depthWasEnabled = org.lwjgl.opengl.GL11.glIsEnabled(
-                    org.lwjgl.opengl.GL11.GL_DEPTH_TEST);
-            boolean stencilWasEnabled = org.lwjgl.opengl.GL11.glIsEnabled(
-                    org.lwjgl.opengl.GL11.GL_STENCIL_TEST);
-            tryEnableStencil(mc.getMainRenderTarget());
-            try {
-                org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_STENCIL_TEST);
-                org.lwjgl.opengl.GL11.glStencilMask(0xFF);
-                org.lwjgl.opengl.GL11.glClear(org.lwjgl.opengl.GL11.GL_STENCIL_BUFFER_BIT);
-                org.lwjgl.opengl.GL11.glStencilFunc(org.lwjgl.opengl.GL11.GL_ALWAYS, 1, 0xFF);
-                org.lwjgl.opengl.GL11.glStencilOp(org.lwjgl.opengl.GL11.GL_REPLACE,
-                        org.lwjgl.opengl.GL11.GL_REPLACE, org.lwjgl.opengl.GL11.GL_REPLACE);
-                org.lwjgl.opengl.GL11.glColorMask(false, false, false, false);
-                org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_DEPTH_TEST);
-                drawSolidCircle(guiGraphics, cx, cy, radius, CIRCLE_SEGMENTS, 0xFFFFFFFF);
-                org.lwjgl.opengl.GL11.glColorMask(true, true, true, true);
-                org.lwjgl.opengl.GL11.glStencilFunc(org.lwjgl.opengl.GL11.GL_EQUAL, 1, 0xFF);
-                org.lwjgl.opengl.GL11.glStencilOp(org.lwjgl.opengl.GL11.GL_KEEP,
-                        org.lwjgl.opengl.GL11.GL_KEEP, org.lwjgl.opengl.GL11.GL_KEEP);
-                org.lwjgl.opengl.GL11.glStencilMask(0x00);
-                MapRenderer.getInstance().drawMap(
-                        guiGraphics, x, y, size, size, interpX, interpZ, effectiveZoom,
-                        false, MapConfig.minimapRotate, true, 0, 0, partialTick);
-            } finally {
-                org.lwjgl.opengl.GL11.glColorMask(true, true, true, true);
-                org.lwjgl.opengl.GL11.glStencilMask(0xFF);
-                if (stencilWasEnabled) org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_STENCIL_TEST);
-                else org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_STENCIL_TEST);
-                if (depthWasEnabled) org.lwjgl.opengl.GL11.glEnable(org.lwjgl.opengl.GL11.GL_DEPTH_TEST);
-                else org.lwjgl.opengl.GL11.glDisable(org.lwjgl.opengl.GL11.GL_DEPTH_TEST);
-            }
+            MapRenderer.getInstance().drawMap(
+                    guiGraphics, x, y, size, size, interpX, interpZ, effectiveZoom,
+                    false, MapConfig.minimapRotate, true, 0, 0, partialTick);
         }
 
         MapRenderer.getInstance().drawMinimapPlayerOverlay(
@@ -525,7 +497,7 @@ public class MinimapRenderer {
         guiGraphics.pose().scale((float)(0.7f), (float)(0.7f)); // Scale down slightly to fit on the border nicely
 
         int textWidth = mc.font.width(letter);
-        guiGraphics.text(mc.font, letter, -textWidth / 2, -4, color, true);
+        guiGraphics.text(mc.font, letter, -textWidth / 2, -4, (color & 0xFF000000) == 0 ? (0xFF000000 | color) : color, true);
         guiGraphics.pose().popMatrix();
     }
 
@@ -744,7 +716,10 @@ public class MinimapRenderer {
         guiGraphics.pose().pushMatrix();
         guiGraphics.pose().translate((float)(iconX), (float)(iconZ));
         if (offMap) {
-            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, PLAYER_OFF_MAP_TEXTURE, -halfSize, -halfSize, 0.0f, 0.0f, markerSize, markerSize, 8, 8, 8, 8);
+            float outerRadius = Math.max(2.5f, halfSize);
+            float innerRadius = Math.max(1.5f, outerRadius - 1.0f);
+            MapScreen.drawSolidCircleHelper(guiGraphics, 0.0f, 0.0f, outerRadius, 16, 0xFF000000, 0.0f);
+            MapScreen.drawSolidCircleHelper(guiGraphics, 0.0f, 0.0f, innerRadius, 16, 0xFFE52828, 0.0f);
         } else {
             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, RED_X_TEXTURE, -halfSize, -halfSize, 0.0f, 0.0f, markerSize, markerSize, 8, 8, 8, 8);
         }
@@ -767,49 +742,17 @@ public class MinimapRenderer {
         guiGraphics.pose().scale((float)(textScale), (float)(textScale));
         int rawWidth = mc.font.width(label);
         guiGraphics.fill(-rawWidth / 2 - 2, -1, rawWidth / 2 + 2, 8, 0xAA000000);
-        guiGraphics.text(mc.font, label, -rawWidth / 2, 0, 0xFFFFFF, false);
+        guiGraphics.text(mc.font, label, -rawWidth / 2, 0, 0xFFFFFFFF, false);
         guiGraphics.pose().popMatrix();
     }
     private void drawSolidCircle(GuiGraphicsExtractor guiGraphics, float cx, float cy, float radius, int numSegments,
             int color) {
-        if (radius <= 0.5f) return;
-        int rInt = (int) Math.ceil(radius);
-        float rSq = radius * radius;
-        for (int dy = -rInt; dy <= rInt; dy++) {
-            float dxSq = rSq - dy * dy;
-            if (dxSq <= 0.0f) continue;
-            int dx = (int) Math.floor(Math.sqrt(dxSq));
-            int y = Math.round(cy) + dy;
-            guiGraphics.fill(Math.round(cx) - dx, y, Math.round(cx) + dx + 1, y + 1, color);
-        }
+        MapScreen.drawSolidCircleHelper(guiGraphics, cx, cy, radius, numSegments, color, 0.0f);
     }
 
     private void drawCircleRing(GuiGraphicsExtractor guiGraphics, float cx, float cy, float r1, float r2, int numSegments,
             int color) {
-        float innerR = Math.min(r1, r2);
-        float outerR = Math.max(r1, r2);
-        if (outerR <= 0.5f) return;
-        int rInt = (int) Math.ceil(outerR);
-        float outSq = outerR * outerR;
-        float inSq = innerR * innerR;
-        int icx = Math.round(cx);
-        int icy = Math.round(cy);
-        for (int dy = -rInt; dy <= rInt; dy++) {
-            float outDxSq = outSq - dy * dy;
-            if (outDxSq <= 0.0f) continue;
-            int outDx = (int) Math.floor(Math.sqrt(outDxSq));
-            int y = icy + dy;
-            float inDxSq = inSq - dy * dy;
-            if (inDxSq <= 0.0f) {
-                guiGraphics.fill(icx - outDx, y, icx + outDx + 1, y + 1, color);
-            } else {
-                int inDx = (int) Math.ceil(Math.sqrt(inDxSq));
-                if (outDx >= inDx) {
-                    guiGraphics.fill(icx - outDx, y, icx - inDx + 1, y + 1, color);
-                    guiGraphics.fill(icx + inDx, y, icx + outDx + 1, y + 1, color);
-                }
-            }
-        }
+        MapScreen.drawCircleRing(guiGraphics, cx, cy, r1, r2, numSegments, color);
     }
 
     public static final class MinimapService {

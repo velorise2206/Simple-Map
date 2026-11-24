@@ -636,10 +636,8 @@ public class MapRenderer {
              * while the glow pass repeated the blend query. Those synchronous GL
              * reads serialized the render thread despite low GPU utilisation.
              */
-            boolean blendWasEnabledForMap = GL11.glIsEnabled(GL11.GL_BLEND);
-            boolean depthWasEnabledForMap = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
             try {
-                if (caveMode) {
+                if (caveMode && !(isMinimap && MapConfig.minimapCircle)) {
                     guiGraphics.fill(minRegionX * 512, minRegionZ * 512,
                             (maxRegionX + 1) * 512, (maxRegionZ + 1) * 512,
                             0xFF080A0C);
@@ -653,24 +651,55 @@ public class MapRenderer {
                 boolean useFallbackPlan = fallbackPlan != null
                         && fallbackPlan != cachedPlan
                         && (!caveMode || cachedPlan.plan().quadCount() == 0);
-                if (useFallbackPlan) {
-                    fallbackPlan.plan().drawBasePrepared(planMatrix);
-                }
-                cachedPlan.plan().drawBasePrepared(planMatrix);
+                float glowStrength = (!caveMode && MapConfig.minimapNightMode != 0)
+                        ? (MapConfig.minimapNightMode == 2
+                                ? 1.0f
+                                : Math.max(0.0f, Math.min(1.0f,
+                                        (1.0f - mapBrightness) / (1.0f - NIGHT_MIN_BRIGHTNESS))))
+                        : 0.0f;
 
-                if (!caveMode && MapConfig.minimapNightMode != 0) {
-                    float glowStrength = MapConfig.minimapNightMode == 2
-                            ? 1.0f
-                            : Math.max(0.0f, Math.min(1.0f,
-                                    (1.0f - mapBrightness)
-                                            / (1.0f - NIGHT_MIN_BRIGHTNESS)));
-                    if (glowStrength > 0.005f) {
-                        /* 1.21.11 pipeline blend */
-                        /* 1.21.11 deferred color */
-                        if (useFallbackPlan && cachedPlan.plan().quadCount() == 0) {
-                            fallbackPlan.plan().drawGlowPrepared(planMatrix);
+                boolean renderedCircularFbo = false;
+                if (isMinimap && MapConfig.minimapCircle && width == height && width > 0) {
+                    float rotRad = rotateWithPlayer
+                            ? (float) Math.toRadians(-net.minecraft.util.Mth.rotLerp(
+                                    partialTick, mc.player.yRotO, mc.player.getYRot()) - 180.0f)
+                            : 0.0f;
+                    poseStack.popMatrix();
+                    renderedCircularFbo = com.velorise.simplemap.client.gpu.CircularMinimapFbo.getInstance()
+                            .renderAndBlit(guiGraphics, viewportX, viewportY, width,
+                                    cachedPlan.plan().instancePlan(),
+                                    useFallbackPlan ? fallbackPlan.plan().instancePlan() : null,
+                                    centerX, centerZ, scale, rotRad,
+                                    caveMode, baseBrightness, glowStrength);
+                    poseStack.pushMatrix();
+                    poseStack.translate((float)(viewportX + width / 2.0), (float)(viewportY + height / 2.0));
+                    if (rotateWithPlayer) {
+                        poseStack.rotate(rotRad);
+                    }
+                    poseStack.scale((float)(scale), (float)(scale));
+                    poseStack.translate((float)(-centerX), (float)(-centerZ));
+                }
+
+                if (!renderedCircularFbo) {
+                    if (useFallbackPlan) {
+                        fallbackPlan.plan().drawBase(guiGraphics);
+                    }
+                    cachedPlan.plan().drawBase(guiGraphics);
+
+                    if (!caveMode && baseBrightness < 0.995f) {
+                        int darkAlpha = Math.max(0, Math.min(220, Math.round((1.0f - baseBrightness) * 255.0f)));
+                        if (darkAlpha > 0) {
+                            guiGraphics.fill(minRegionX * 512, minRegionZ * 512,
+                                    (maxRegionX + 1) * 512, (maxRegionZ + 1) * 512,
+                                    darkAlpha << 24);
                         }
-                        cachedPlan.plan().drawGlowPrepared(planMatrix);
+                    }
+
+                    if (glowStrength > 0.005f) {
+                        if (useFallbackPlan && cachedPlan.plan().quadCount() == 0) {
+                            fallbackPlan.plan().drawGlow(guiGraphics);
+                        }
+                        cachedPlan.plan().drawGlow(guiGraphics);
                     }
                 }
             } finally {
@@ -742,7 +771,7 @@ public class MapRenderer {
         // navigation path as expected.
         boolean viewingLiveDim = MapManager.getInstance().isViewingLiveDimension();
         double crossDimScale = MapManager.getInstance().getCrossDimensionCoordinateScale();
-        if (drawPinContent && MapConfig.pinActive && viewingLiveDim) {
+        if (drawPinContent && !isMinimap && MapConfig.pinActive && viewingLiveDim) {
             double routePlayerX = net.minecraft.util.Mth.lerp(partialTick,
                     mc.player.xo, mc.player.getX()) * crossDimScale;
             double routePlayerZ = net.minecraft.util.Mth.lerp(partialTick,
@@ -773,7 +802,7 @@ public class MapRenderer {
         }
 
         // 6.5. Render pin marker if active and within visible bounds
-        if (drawPinContent && MapConfig.pinActive) {
+        if (drawPinContent && !isMinimap && MapConfig.pinActive) {
             if (MapConfig.pinWorldX >= minX && MapConfig.pinWorldX <= maxX &&
                     MapConfig.pinWorldZ >= minZ && MapConfig.pinWorldZ <= maxZ) {
 
@@ -3312,10 +3341,9 @@ public class MapRenderer {
 
         // ClientLevel.getSkyDarken(partialTick) returns sky brightness in [0.2, 1.0]
         // (1.0 during full daylight, 0.2 at midnight, with rapid dusk/dawn transitions).
-        float sunlight = Math.max(0.0f, Math.min(1.0f,
-                mc.level.getSkyDarken()));
+        // ClientLevel.getSkyDarken() returns an int sky darken level in [0..11] (0 = full day, 11 = midnight).
         float normalizedSun = Math.max(0.0f, Math.min(1.0f,
-                (sunlight - 0.2f) / 0.8f));
+                1.0f - (mc.level.getSkyDarken() / 11.0f)));
         return ambient + (1.0f - ambient) * normalizedSun;
     }
 
@@ -3333,8 +3361,8 @@ public class MapRenderer {
                 && !CaveMode.isFullView(mc)) {
             int layerY = CaveMode.getLayerY(mc);
             if (layerY >= 56) {
-                float skyBrightness = Math.max(0.0f, Math.min(1.0f, mc.level.getSkyDarken()));
-                float normalizedSun = Math.max(0.0f, Math.min(1.0f, (skyBrightness - 0.2f) / 0.8f));
+                // Level.getSkyDarken() returns an int sky darken level in [0..11] (0 = full day, 11 = midnight).
+                float normalizedSun = Math.max(0.0f, Math.min(1.0f, 1.0f - (mc.level.getSkyDarken() / 11.0f)));
                 return 0.82f + 0.18f * normalizedSun;
             }
         }
@@ -3380,7 +3408,7 @@ public class MapRenderer {
             int textY = -16;
 
             guiGraphics.fill(textX - 2, textY - 2, textX + textWidth + 2, textY + 9, 0x88000000);
-            guiGraphics.text(mc.font, wp.name, textX, textY, 0xFFFFFF, false);
+            guiGraphics.text(mc.font, wp.name, textX, textY, 0xFFFFFFFF, false);
         }
 
         poseStack.popMatrix();
@@ -3467,8 +3495,6 @@ public class MapRenderer {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
 
-        boolean depthWasEnabled = GL11.glIsEnabled(GL11.GL_DEPTH_TEST);
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
         Matrix3x2fStack poseStack = guiGraphics.pose();
         poseStack.pushMatrix();
         try {
@@ -3492,8 +3518,6 @@ public class MapRenderer {
             }
         } finally {
             poseStack.popMatrix();
-            if (depthWasEnabled) GL11.glEnable(GL11.GL_DEPTH_TEST);
-            else GL11.glDisable(GL11.GL_DEPTH_TEST);
         }
     }
 
@@ -3542,13 +3566,81 @@ public class MapRenderer {
         return configColor;
     }
 
+    private static final java.util.Map<Integer, Identifier> POINTER_TEXTURE_CACHE = new java.util.HashMap<>();
+
+    private static boolean pointInTriangle(float px, float py,
+            float ax, float ay, float bx, float by, float cx, float cy) {
+        float d1 = (px - bx) * (ay - by) - (ax - bx) * (py - by);
+        float d2 = (px - cx) * (by - cy) - (bx - cx) * (py - cy);
+        float d3 = (px - ax) * (cy - ay) - (cx - ax) * (py - ay);
+        boolean hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+        boolean hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+        return !(hasNeg && hasPos);
+    }
+
+    private static Identifier getOrCreatePointerTexture(int argb) {
+        Identifier cached = POINTER_TEXTURE_CACHE.get(argb);
+        if (cached != null) return cached;
+        final int texSize = 64;
+        final float half = texSize * 0.5f;
+        final float unitsPerPixel = 16.0f / texSize; // maps [-8, 8] world units to [0, 64]
+        DynamicTexture dyn = new DynamicTexture("simplemap_pointer_" + Integer.toHexString(argb), texSize, texSize, true);
+        com.mojang.blaze3d.platform.NativeImage img = dyn.getPixels();
+        if (img != null) {
+            int fillRgb = argb & 0x00FFFFFF;
+            int fillA = (argb >>> 24) & 0xFF;
+            int outlineRgb = 0x121212;
+            for (int py = 0; py < texSize; py++) {
+                for (int px = 0; px < texSize; px++) {
+                    int fillHits = 0;
+                    int outHits = 0;
+                    for (int sy = 0; sy < 2; sy++) {
+                        for (int sx = 0; sx < 2; sx++) {
+                            float ux = (px + (sx + 0.5f) * 0.5f - half) * unitsPerPixel;
+                            float uy = (py + (sy + 0.5f) * 0.5f - half) * unitsPerPixel;
+                            boolean inFill = pointInTriangle(ux, uy, 0.0f, -6.0f, -4.5f, 4.5f, 0.0f, 2.0f)
+                                    || pointInTriangle(ux, uy, 0.0f, -6.0f, 0.0f, 2.0f, 4.5f, 4.5f);
+                            boolean inOut = inFill
+                                    || pointInTriangle(ux, uy, 0.0f, -7.5f, -5.5f, 5.5f, 0.0f, 3.0f)
+                                    || pointInTriangle(ux, uy, 0.0f, -7.5f, 0.0f, 3.0f, 5.5f, 5.5f);
+                            if (inFill) fillHits++;
+                            if (inOut) outHits++;
+                        }
+                    }
+                    if (outHits == 0) {
+                        img.setPixel(px, py, 0);
+                    } else {
+                        int outAlpha = (outHits * fillA) / 4;
+                        float fillRatio = (float) fillHits / (float) outHits;
+                        int fr = (fillRgb >>> 16) & 0xFF;
+                        int fg = (fillRgb >>> 8) & 0xFF;
+                        int fb = fillRgb & 0xFF;
+                        int or_ = (outlineRgb >>> 16) & 0xFF;
+                        int og = (outlineRgb >>> 8) & 0xFF;
+                        int ob = outlineRgb & 0xFF;
+                        int rr = Math.round(or_ + (fr - or_) * fillRatio);
+                        int rg = Math.round(og + (fg - og) * fillRatio);
+                        int rb = Math.round(ob + (fb - ob) * fillRatio);
+                        img.setPixel(px, py, (outAlpha << 24) | (rr << 16) | (rg << 8) | rb);
+                    }
+                }
+            }
+            dyn.upload();
+        }
+        Identifier id = Identifier.fromNamespaceAndPath("simplemap", "pointer_" + Integer.toHexString(argb));
+        Minecraft.getInstance().getTextureManager().register(id, dyn);
+        if (POINTER_TEXTURE_CACHE.size() > 32) {
+            POINTER_TEXTURE_CACHE.clear();
+        }
+        POINTER_TEXTURE_CACHE.put(argb, id);
+        return id;
+    }
+
     private void drawDirectionalPointer(GuiGraphicsExtractor guiGraphics, int color, float alpha) {
         int a = Math.max(0, Math.min(255, Math.round(alpha * 255.0f)));
         int argb = (a << 24) | (color & 0x00FFFFFF);
-        int outline = (a << 24) | 0x00101010;
-        guiGraphics.fill(-4, -5, 4, 5, outline);
-        guiGraphics.fill(-3, -4, 3, 4, argb);
-        guiGraphics.fill(-1, -6, 1, -4, argb);
+        Identifier tex = getOrCreatePointerTexture(argb);
+        guiGraphics.blit(RenderPipelines.GUI_TEXTURED, tex, -8, -8, 0.0f, 0.0f, 16, 16, 64, 64, 64, 64);
     }
 
     private static final class RenderStats {
@@ -3774,7 +3866,7 @@ public class MapRenderer {
                     int ry = Math.round(Math.min(y0, y2));
                     int rw = Math.max(1, Math.round(Math.abs(x2 - x0)));
                     int rh = Math.max(1, Math.round(Math.abs(y2 - y0)));
-                    int texSize = 512;
+                    int texSize = 4096;
                     float uPx = Math.min(u0, u2) * texSize;
                     float vPx = Math.min(v0, v2) * texSize;
                     int ru = Math.max(1, Math.round(Math.abs(u2 - u0) * texSize));

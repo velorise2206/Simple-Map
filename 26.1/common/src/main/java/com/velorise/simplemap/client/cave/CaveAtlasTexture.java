@@ -3,13 +3,45 @@ package com.velorise.simplemap.client.cave;
 import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.AddressMode;
+import com.mojang.blaze3d.textures.FilterMode;
+import java.util.OptionalDouble;
+import com.mojang.blaze3d.textures.GpuSampler;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.TextureFormat;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
+import org.lwjgl.opengl.GL13;
 
 public final class CaveAtlasTexture extends AbstractTexture {
+    private static GpuSampler sharedLinearMinNearestMagSampler;
+    private static GpuSampler sharedNearestSampler;
+
+    private static GpuSampler getOrCreateSharedSampler(boolean linearMin) {
+        if (linearMin) {
+            if (sharedLinearMinNearestMagSampler == null) {
+                sharedLinearMinNearestMagSampler = RenderSystem.getDevice().createSampler(
+                        AddressMode.CLAMP_TO_EDGE,
+                        AddressMode.CLAMP_TO_EDGE,
+                        FilterMode.LINEAR,
+                        FilterMode.NEAREST,
+                        1,
+                        OptionalDouble.empty());
+            }
+            return sharedLinearMinNearestMagSampler;
+        }
+        if (sharedNearestSampler == null) {
+            sharedNearestSampler = RenderSystem.getDevice().createSampler(
+                    AddressMode.CLAMP_TO_EDGE,
+                    AddressMode.CLAMP_TO_EDGE,
+                    FilterMode.NEAREST,
+                    FilterMode.NEAREST,
+                    1,
+                    OptionalDouble.empty());
+        }
+        return sharedNearestSampler;
+    }
     private final int size;
     private final boolean linearMinification;
     private final Runnable storageAllocatedCallback;
@@ -42,15 +74,9 @@ public final class CaveAtlasTexture extends AbstractTexture {
                 TextureFormat.RGBA8,
                 size, size, 1, 1);
         this.textureView = RenderSystem.getDevice().createTextureView(this.texture);
-        int glId = getId();
-        if (glId > 0) {
-            GlStateManager._bindTexture(glId);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER,
-                    linearMinification ? GL11.GL_LINEAR : GL11.GL_NEAREST);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S, GL12.GL_CLAMP_TO_EDGE);
-            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T, GL12.GL_CLAMP_TO_EDGE);
-        }
+        this.sampler = getOrCreateSharedSampler(linearMinification);
+        // Blaze3D GpuSampler handles min/mag filtering and edge clamping cleanly
+        // across both direct GlTexture and wrapped ValidationGpuTexture backends.
         if (storageAllocatedCallback != null) storageAllocatedCallback.run();
     }
 

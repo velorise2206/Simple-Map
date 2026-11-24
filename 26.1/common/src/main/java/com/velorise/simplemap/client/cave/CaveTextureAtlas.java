@@ -146,7 +146,7 @@ public final class CaveTextureAtlas {
                 && dirty.maxY() == pageSize - 1) {
             int[] guttered = gutteredUploads[lod];
             AtlasGutter.copyOnePixelBorder(pixels, pageSize, guttered);
-            uploader.upload(textureIds[lod], atlasX, atlasY,
+            uploader.upload(textures[lod].getTexture(), atlasX, atlasY,
                     pitch, pitch, guttered, pitch, 0, 0);
             return;
         }
@@ -163,14 +163,14 @@ public final class CaveTextureAtlas {
         if (touchesEdge) {
             int[] guttered = gutteredUploads[lod];
             AtlasGutter.copyOnePixelBorder(pixels, pageSize, guttered);
-            uploader.upload(textureIds[lod], atlasX, atlasY,
+            uploader.upload(textures[lod].getTexture(), atlasX, atlasY,
                     pitch, pitch, guttered, pitch, 0, 0);
             return;
         }
 
         int width = dirty.maxX() - dirty.minX() + 1;
         int height = dirty.maxY() - dirty.minY() + 1;
-        uploader.upload(textureIds[lod],
+        uploader.upload(textures[lod].getTexture(),
                 atlasX + 1 + dirty.minX(),
                 atlasY + 1 + dirty.minY(),
                 width, height, pixels, pageSize,

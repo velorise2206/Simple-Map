@@ -191,14 +191,20 @@ public final class MapMemoryBudgetPolicy {
         return Math.max(24L << 20, Math.min(desired, availableShare));
     }
 
+    private static volatile boolean vramQueried = false;
+    private static volatile long cachedVramBytes = -1L;
+
     private static long queryAvailableVramBytes() {
+        if (vramQueried) return cachedVramBytes;
+        vramQueried = true;
         try {
             Object capabilities = GL.getCapabilities();
             Field field = capabilities.getClass().getField("GL_NVX_gpu_memory_info");
             if (!field.getBoolean(capabilities)) return -1L;
             int availableKiB = GL11.glGetInteger(
                     GPU_MEMORY_INFO_CURRENT_AVAILABLE_VIDMEM_NVX);
-            return availableKiB > 0 ? availableKiB * 1024L : -1L;
+            cachedVramBytes = availableKiB > 0 ? availableKiB * 1024L : -1L;
+            return cachedVramBytes;
         } catch (Throwable unsupported) {
             return -1L;
         }

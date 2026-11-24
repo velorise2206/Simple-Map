@@ -3877,17 +3877,7 @@ public class MapTextureManager {
             Minecraft.getInstance().execute(() -> configureExactSurfaceSampling(texture));
             return;
         }
-        if (!(texture.getTexture() instanceof com.mojang.blaze3d.opengl.GlTexture glTex)) return;
-        GlStateManager._bindTexture(glTex.glId());
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER,
-                GL11.GL_LINEAR);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER,
-                GL11.GL_NEAREST);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_S,
-                GL12.GL_CLAMP_TO_EDGE);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_WRAP_T,
-                GL12.GL_CLAMP_TO_EDGE);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL12.GL_TEXTURE_MAX_LEVEL, 0);
+        // Sampling is managed by Blaze3D GpuSampler without mutating raw GL texture bindings.
     }
 
     private void enqueueLeafPublication(int regionX, int regionZ, long generation,
