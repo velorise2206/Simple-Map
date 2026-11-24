@@ -1180,6 +1180,7 @@ public class MapManager {
     public void reloadAllRegions() {
         MapSessionManager.getInstance().bumpStyleGeneration();
         MapTextureManager.getInstance().clearDerivedColorCaches();
+        com.velorise.simplemap.client.color.SurfaceColorizer.BlockTextureColorSampler.clearCache();
         MapVisualClassifier.getInstance().clear();
         MapVisualClassifier.MapBlockEntityVisualResolver.getInstance().clear();
         com.velorise.simplemap.client.cave.CaveTextureManager.CaveMapManager.CaveStateClassifier.getInstance().clear();
@@ -2225,10 +2226,21 @@ public class MapManager {
         }
     }
 
+    private boolean wasResourceReloadOverlayActive = false;
+
     public void tickSave() {
+        var minecraft = net.minecraft.client.Minecraft.getInstance();
+        boolean reloadOverlay = minecraft.getOverlay() instanceof net.minecraft.client.gui.screens.LoadingOverlay;
+        if (wasResourceReloadOverlayActive && !reloadOverlay) {
+            wasResourceReloadOverlayActive = false;
+            if (minecraft.level != null && minecraft.player != null) {
+                reloadAllRegions();
+            }
+        } else {
+            wasResourceReloadOverlayActive = reloadOverlay;
+        }
         if (MapActivityGate.getInstance().blocksMapWork()) return;
         long now = System.currentTimeMillis();
-        var minecraft = net.minecraft.client.Minecraft.getInstance();
         if (minecraft.player == null) return;
 
         double playerX = minecraft.player.getX();

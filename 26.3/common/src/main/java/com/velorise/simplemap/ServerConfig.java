@@ -21,7 +21,7 @@ public final class ServerConfig {
     private static File configFile;
 
     public static boolean requireMapBook = false;
-    public static int caveMapMode = 2; // 0 = OFF, 1 = AUTO, 2 = ON (temp unlocked for 26.3 testing)
+    public static int caveMapMode = 0; // 0 = OFF, 1 = AUTO, 2 = ON
 
     private ServerConfig() {
     }
@@ -39,7 +39,7 @@ public final class ServerConfig {
                 LOGGER.error("Failed to load Simple Map server config; preserving unreadable file", exception);
                 quarantineCorruptConfig();
                 requireMapBook = false;
-                caveMapMode = 2;
+                caveMapMode = 0;
             }
         }
         save();
@@ -88,6 +88,6 @@ public final class ServerConfig {
 
     private static final class Data {
         boolean requireMapBook = false;
-        int caveMapMode = 2;
+        int caveMapMode = 0;
     }
 }

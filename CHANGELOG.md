@@ -7,20 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.0.6] - 2026-11-24
+## [2.1.0] - 2026-11-24
 
 ### Added
-- **Official Ports for Minecraft 1.21.11, 26.1 & 26.2 (Fabric & NeoForge)**: Added official multi-loader editions for Minecraft `1.21.11`, `26.1`, and `26.2` with full feature parity (surface and layered cave mapping, circular minimap, waypoints and pins, Auto Night Mode, and Map Book sharing).
+- **Official Ports for Minecraft 1.21.11, 26.1, 26.2 & 26.3 (Fabric & NeoForge)**: Added official multi-loader editions across all four modern drops with full feature parity (surface and layered cave mapping, circular minimap, waypoints and pins, Auto Night Mode, and Map Book sharing), including 26.2 Vulkan-ready Blaze3D / `Gui`/`Hud` and 26.3 Renderpearl / SDL migrations.
+- **Automatic Resource Pack Color Reload (All Loaders)**: Switching resource packs or pressing `F3+T` now automatically clears texture-sampled block color caches and refreshes visible map regions without restarting the game.
 
 ### Fixed
-- **Vanilla Color Mode (Snow & Pure-White Blocks)**: Fixed snow and other pure-white (`0xFFFFFFFF`) blocks rendering pink in Vanilla color mode across all supported Minecraft versions (`1.20.1`, `1.21.1`, `1.21.11`, and `26.1`).
-- **[26.1] Offline World-Save Map Reconstruction**: Resolved Anvil `.mca` region folders via `DimensionType.getStorageFolder(...)` in `MapManager` and `CaveTextureManager`, restoring distant surface backfill and offline cave slicing under Minecraft 26.1's `dimensions/<namespace>/<path>/region/` layout.
+- **Vanilla Color Mode (Snow & Pure-White Blocks)**: Fixed snow and other pure-white (`0xFFFFFFFF`) blocks rendering pink in Vanilla color mode across all supported Minecraft versions.
+- **[26.1+] Offline World-Save Map Reconstruction**: Resolved Anvil `.mca` region folders via `DimensionType.getStorageFolder(...)` in `MapManager` and `CaveTextureManager`, restoring distant surface backfill and offline cave slicing under Minecraft 26.x's `dimensions/<namespace>/<path>/region/` layout.
+- **[26.2+] Auto Night Mode**: Switched client sky-brightness sampling to `EnvironmentAttributes.SKY_LIGHT_FACTOR` (`getValue(attr, pos)`) so daytime/nighttime and weather transitions update smoothly.
+- **[1.21.11+] The End Brightness in Auto Night Mode**: Added a clean End-dimension fallback in `DimensionMapProfile.queryForceBrightLightmap` so The End retains full map visibility when `ClientLevel.effects()` is absent.
 - **Cave Border Seam Stitching**: Enforced 8-neighbor FULL cave border validation in `CaveTextureManager` across all versions to eliminate tile gaps between adjacent subterranean regions.
+- **Early-Quit NeoForge Crash**: Switched `MapRenderer.fallbackWaypointStack` to lazy initialization across all versions so quitting from a mod-loading warning screen before `DataComponents` bind never throws `NullPointerException`.
+- **NeoForge Metadata Compliance**: Updated `neoforge.mods.toml` to `side="BOTH"` across `1.21.1`–`26.3` for clean Dedicated Server dependency checks, and replaced deprecated `logoFile` with `iconFile` on `26.2`–`26.3`.
 
 ### Changed
-- **Smoother Minimap Scrolling (All Loaders)**: Updated minimap HUD rendering to use real frame `partialTick` interpolation instead of stepping at fixed 20 TPS ticks on `Fabric` (all versions), `Forge 1.20.1`, and `NeoForge 1.21.1`, delivering silky-smooth high-refresh-rate movement across every loader.
-- **Smooth Fullscreen Map Zoom & Pan (All Loaders)**: Added cursor-anchored log-space smooth zoom (mouse wheel and zoom keys) and frame-synchronized, origin-anchored mouse dragging in `MapScreen` across `1.20.1`, `1.21.1`, `1.21.11`, and `26.1`.
-- **Fullscreen Map Responsiveness (1.20.1 & 1.21.1)**: Disabled retained fullscreen FBO in `FullscreenMapFramebufferRenderer` in favor of direct `MapRenderPlan` replay, eliminating stale blurry frames and layer-switching latency while maintaining parity with 1.21.11 and 26.1.
+- **Smoother Minimap Scrolling (All Loaders)**: Updated minimap HUD rendering to use real frame `partialTick` interpolation instead of stepping at fixed 20 TPS ticks on `Fabric`, `Forge 1.20.1`, and `NeoForge 1.21.1`.
+- **Smooth Fullscreen Map Zoom & Pan (All Loaders)**: Added cursor-anchored log-space smooth zoom (mouse wheel and zoom keys) and frame-synchronized, origin-anchored mouse dragging in `MapScreen` across all versions.
+- **Fullscreen Map Responsiveness (1.20.1 & 1.21.1)**: Disabled retained fullscreen FBO in `FullscreenMapFramebufferRenderer` in favor of direct `MapRenderPlan` replay, eliminating stale blurry frames and layer-switching latency.
 - **HUD Positioning & Settings Polish**: Added empty-space click to toggle clean HUD position-edit mode (hiding settings widgets so minimap/coords are never obstructed while dragging), added bidirectional 14px magnetic snapping between coordinates HUD and minimap dock in `MapConfigScreen`, removed obsolete STREAM mapping mode, and widened GPU memory budget throttles.
 
 ---

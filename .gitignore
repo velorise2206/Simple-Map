@@ -35,6 +35,8 @@ ENGINE_NOTES.md
 ENGINE_NOTES*.md
 *_NOTES.md
 *.ps1
+!build-all.ps1
+!scripts/*.ps1
 *.zip
 
 # Local performance investigation and reference sources
