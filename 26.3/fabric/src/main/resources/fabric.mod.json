@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${mod_version}",
+  "name": "${mod_name}",
+  "description": "${mod_description}",
+  "authors": [
+    "${mod_authors}"
+  ],
+  "contact": {
+    "homepage": "https://modrinth.com/mod/velorise-simple-map",
+    "sources": "https://github.com/velorise2206/Simple-Map",
+    "issues": "https://github.com/velorise2206/Simple-Map/issues"
+  },
+  "license": "${mod_license}",
+  "icon": "logo.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.velorise.simplemap.SimpleMap"
+    ],
+    "client": [
+      "com.velorise.simplemap.client.SimpleMapClientMod"
+    ]
+  },
+  "mixins": [
+    "simplemap.mixins.json",
+    "simplemap.fabric.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

@@ -1,0 +1,79 @@
+plugins {
+    id 'net.fabricmc.fabric-loom' version "${loom_version}"
+    id 'maven-publish'
+}
+
+version = project.mod_version
+group = project.mod_group_id
+
+base {
+    archivesName = "${project.mod_id}-26.3-fabric"
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url = 'https://maven.fabricmc.net/' }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${project.fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+processResources {
+    var props = [
+        mod_id           : project.mod_id,
+        mod_name         : project.mod_name,
+        mod_version      : project.mod_version,
+        mod_license      : project.mod_license,
+        mod_authors      : project.mod_authors,
+        mod_description  : project.mod_description,
+        loader_version   : project.fabric_loader_version,
+        minecraft_version: project.minecraft_version
+    ]
+    inputs.properties props
+    filesMatching('fabric.mod.json') {
+        expand props
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+    options.encoding = 'UTF-8'
+}
+
+java {
+    withSourcesJar()
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+sourceSets {
+    main {
+        java.srcDirs += ['../common/src/main/java']
+        resources.srcDirs += ['../common/src/main/resources']
+    }
+}
+
+
+loom {
+    runs {
+        client {
+            client()
+            setConfigName("Fabric Client")
+            ideConfigGenerated(true)
+            runDir("run")
+            if (Boolean.getBoolean("simplemap.debug") || "true".equalsIgnoreCase(System.getenv("SIMPLEMAP_DEBUG")) || project.hasProperty("simplemap.debug")) {
+                property "simplemap.debug", "true"
+            }
+        }
+        server {
+            server()
+            setConfigName("Fabric Server")
+            ideConfigGenerated(true)
+            runDir("run")
+        }
+    }
+}

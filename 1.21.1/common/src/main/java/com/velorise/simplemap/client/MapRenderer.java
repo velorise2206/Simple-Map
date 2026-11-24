@@ -119,8 +119,14 @@ public class MapRenderer {
      * handoff across Surface, Layered Cave and Full Cave transitions.
      */
     private final RenderStats sharedRenderStats = new RenderStats();
-    private final net.minecraft.world.item.ItemStack fallbackWaypointStack =
-            new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COMPASS);
+    private net.minecraft.world.item.ItemStack fallbackWaypointStack;
+
+    private net.minecraft.world.item.ItemStack getFallbackWaypointStack() {
+        if (fallbackWaypointStack == null) {
+            fallbackWaypointStack = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.COMPASS);
+        }
+        return fallbackWaypointStack;
+    }
     private final Map<String, net.minecraft.world.item.ItemStack> waypointItemStacks =
             new LinkedHashMap<>(32, 0.75f, true) {
                 @Override
@@ -3443,9 +3449,9 @@ public class MapRenderer {
                                 ResourceLocation.parse(itemID));
                 iconStack = item != null && item != net.minecraft.world.item.Items.AIR
                         ? new net.minecraft.world.item.ItemStack(item)
-                        : fallbackWaypointStack;
+                        : getFallbackWaypointStack();
             } catch (RuntimeException invalidIdentifier) {
-                iconStack = fallbackWaypointStack;
+                iconStack = getFallbackWaypointStack();
             }
             waypointItemStacks.put(itemID, iconStack);
         }
