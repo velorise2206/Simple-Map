@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.6] - 2026-11-24
+
+### Added
+- **Official Ports for Minecraft 1.21.11 & 26.1 (Fabric & NeoForge)**: Added official multi-loader editions for Minecraft `1.21.11` and `26.1` with full feature parity (surface and layered cave mapping, circular minimap, waypoints and pins, Auto Night Mode, and Map Book sharing).
+
+### Fixed
+- **Vanilla Color Mode (Snow & Pure-White Blocks)**: Fixed snow and other pure-white (`0xFFFFFFFF`) blocks rendering pink in Vanilla color mode across all supported Minecraft versions (`1.20.1`, `1.21.1`, `1.21.11`, and `26.1`).
+
+### Changed
+- **Smoother Minimap Scrolling (All Loaders)**: Updated minimap HUD rendering to use real frame `partialTick` interpolation instead of stepping at fixed 20 TPS ticks on `Fabric` (all versions), `Forge 1.20.1`, and `NeoForge 1.21.1`, delivering silky-smooth high-refresh-rate movement across every loader.
+
+---
+
 ## [2.0.5] - 2026-11-23
 
 ### Fixed
