@@ -109,12 +109,14 @@ public final class FullscreenMapFramebufferRenderer {
     }
 
     public static boolean shouldUse(Minecraft minecraft, float pixelsPerBlock) {
-        return minecraft != null && minecraft.level != null
-                && pixelsPerBlock > 0.0f && Float.isFinite(pixelsPerBlock);
+        // Direct MapRenderPlan replay avoids retained-FBO redraw coalescing
+        // (eliminating stale blurry branch frames on open/layer-switch) while
+        // maintaining parity with 1.21.11+ and 26.1.
+        return false;
     }
 
     public static int demandOverscanPixels() {
-        return DEMAND_OVERSCAN;
+        return 0;
     }
 
     /**
