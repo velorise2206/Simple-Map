@@ -1,0 +1,21 @@
+name: SimpleMapPaper
+version: '${version}'
+main: com.velorise.simplemap.paper.SimpleMapPaperPlugin
+api-version: '1.20'
+folia-supported: true
+author: Velorise
+description: Lightweight Paper/Spigot/Purpur companion plugin to control Simple Map client cave map permissions.
+
+commands:
+  simplemap:
+    description: Manage Simple Map server cave map policy.
+    usage: /simplemap <status|cave|reload>
+    permission: simplemap.admin
+
+permissions:
+  simplemap.admin:
+    description: Allows configuring Simple Map server policy.
+    default: op
+  simplemap.cave.bypass:
+    description: Allows keeping full cave map enabled regardless of server cave-map-mode.
+    default: false

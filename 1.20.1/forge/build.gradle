@@ -88,13 +88,13 @@ tasks.named('processResources', ProcessResources).configure {
 
 def verifyForgeRefmap = { File jarFile ->
     if (!jarFile.isFile()) {
-        throw new GradleException("Expected Forge jar not found: ${jarFile}")
+        throw new IllegalStateException("Expected Forge jar not found: ${jarFile}")
     }
     def zip = new java.util.zip.ZipFile(jarFile)
     try {
         def refmap = zip.getEntry('simplemap.refmap.json')
         if (refmap == null || refmap.size <= 0L) {
-            throw new GradleException(
+            throw new IllegalStateException(
                 "Missing or empty simplemap.refmap.json inside ${jarFile.name}. " +
                 "Ensure compileJava is not restored from Gradle build cache."
             )

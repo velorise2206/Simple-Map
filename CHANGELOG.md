@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Official Ports for Minecraft 1.21.11, 26.1, 26.2 & 26.3 (Fabric & NeoForge)**: Added official multi-loader editions across all four modern drops with full feature parity (surface and layered cave mapping, circular minimap, waypoints and pins, Auto Night Mode, and Map Book sharing), including 26.2 Vulkan-ready Blaze3D / `Gui`/`Hud` and 26.3 Renderpearl / SDL migrations.
 - **Automatic Resource Pack Color Reload (All Loaders)**: Switching resource packs or pressing `F3+T` now automatically clears texture-sampled block color caches and refreshes visible map regions without restarting the game.
 - **One-Paste 3-Coordinate Waypoint Entry (All Loaders)**: Pasting a 3-coordinate string (such as `120 64 -340`, `120, 64, -340`, or `X: 120 Y: 64 Z: -340`) into any of the `X`, `Y`, or `Z` fields in `AddWaypointScreen` now automatically splits and fills all three axes.
+- **Standalone Paper / Spigot / Purpur / Folia Companion Plugin (`simple-map-paper-2.1.0.jar`)**: Added an independent server plugin under `paper/` sending `simplemap:sync_config` with `/simplemap <status|cave <off|auto|on>|reload>` and permission `simplemap.cave.bypass` (compatible with Fabric `1.20.1`–`26.3` and NeoForge `1.21.1`–`26.3`).
 
 ### Fixed
 - **Vanilla Color Mode (Snow & Pure-White Blocks)**: Fixed snow and other pure-white (`0xFFFFFFFF`) blocks rendering pink in Vanilla color mode across all supported Minecraft versions.

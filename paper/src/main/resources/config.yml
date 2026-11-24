@@ -1,0 +1,8 @@
+# Velorise Simple Map - Paper/Spigot/Purpur Companion Config
+#
+# Controls the cave map mode enforced on connecting Simple Map clients
+# (Fabric & NeoForge 1.21.1 - 26.3, and Fabric 1.20.1):
+#   off  - Cave map disabled (recommended for Fair-Play servers)
+#   auto - Automatic cave mode only when underground / under a roof
+#   on   - Full cave map including manual Y-layer slicing
+cave-map-mode: off

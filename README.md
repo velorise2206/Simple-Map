@@ -10,7 +10,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Release-v2.1.0-brightgreen.svg" alt="Release" />
   <img src="https://img.shields.io/badge/Minecraft-26.3%20%7C%2026.2%20%7C%2026.1%20%7C%201.21.11%20%7C%201.21.1%20%7C%201.20.1-blue.svg" alt="Minecraft Versions" />
-  <img src="https://img.shields.io/badge/Loaders-NeoForge%20%7C%20Fabric%20%7C%20Forge-orange.svg" alt="Mod Loaders" />
+  <img src="https://img.shields.io/badge/Loaders-NeoForge%20%7C%20Fabric%20%7C%20Forge%20%7C%20Paper-orange.svg" alt="Mod Loaders" />
   <a href="https://github.com/velorise2206/Simple-Map/issues"><img src="https://img.shields.io/github/issues/velorise2206/Simple-Map" alt="GitHub Open Issues" /></a>
   <a href="https://github.com/velorise2206/Simple-Map/issues?q=is%3Aissue+is%3Aclosed"><img src="https://img.shields.io/github/issues-closed/velorise2206/Simple-Map?color=brightgreen" alt="GitHub Closed Issues" /></a>
 </p>
@@ -37,6 +37,7 @@ This repository contains all official editions of Velorise Simple Map:
 | [`1.21.1/fabric/`](1.21.1/fabric/) | **1.21.1** | Fabric Loader 0.16.9+ | Java 21 | Stable Release | `simplemap-1.21.1-fabric-2.1.0.jar` |
 | [`1.20.1/forge/`](1.20.1/forge/) | **1.20.1** | Forge 47.3.0+ | Java 17 | Stable Release | `simplemap-1.20.1-forge-2.1.0.jar` |
 | [`1.20.1/fabric/`](1.20.1/fabric/) | **1.20.1** | Fabric Loader 0.16.9+ | Java 17 | Stable Release | `simplemap-1.20.1-fabric-2.1.0.jar` |
+| [`paper/`](paper/) | **1.20+** | Paper / Spigot / Purpur / Folia | Java 17 | Companion Plugin | `simple-map-paper-2.1.0.jar` |
 
 ---
 
@@ -63,10 +64,14 @@ This repository contains all official editions of Velorise Simple Map:
 
 ## 🛠️ Build & Dev Instructions
 
-### 1. Build All 12 Loaders in One Step
+### 1. Build All 12 Loaders & Paper Companion Plugin
 Run the master batch/PowerShell automation script from the root folder:
 ```cmd
 build-all.bat
+```
+* Optionally build the standalone Paper/Spigot/Purpur/Folia server companion plugin separately:
+```cmd
+build-paper.bat
 ```
 * Built `.jar` files will automatically be assembled into the centralized release directory (`../mods/simplemap/`).
 * Requires JDK 25 (`JAVA25_HOME`), JDK 21 (`JAVA21_HOME`), and JDK 17 (`JAVA17_HOME`).
