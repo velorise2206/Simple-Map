@@ -1238,7 +1238,11 @@ public static final class MapVisualClassifier {
         if (blockId == null || blockId.isEmpty()) {
             return VisualInfo.unknown(blockId == null ? "" : blockId);
         }
-        return byBlockId.computeIfAbsent(blockId, this::resolveBlockId);
+        VisualInfo cached = byBlockId.get(blockId);
+        if (cached != null) return cached;
+        VisualInfo resolved = resolveBlockId(blockId);
+        VisualInfo existing = byBlockId.putIfAbsent(blockId, resolved);
+        return existing != null ? existing : resolved;
     }
 
     private VisualInfo resolveBlockId(String blockId) {
@@ -1314,10 +1318,12 @@ public static final class MapVisualClassifier {
         return info.water() ? 176 : (info.emissive() ? 214 : 192);
     }
 
-    public synchronized void clear() {
-        AtomicReferenceArray<VisualInfo> current = byStateId;
-        for (int i = 0; i < current.length(); i++) current.set(i, null);
-        fallback.clear();
+    public void clear() {
+        synchronized (this) {
+            AtomicReferenceArray<VisualInfo> current = byStateId;
+            for (int i = 0; i < current.length(); i++) current.set(i, null);
+            fallback.clear();
+        }
         byBlockId.clear();
     }
 
@@ -1607,7 +1613,8 @@ public static final class MapVisualClassifier {
 
         private static BlockState decodeStateCompound(CompoundTag stateTag) {
             if (stateTag == null || stateTag.isEmpty()) return null;
-            String id = stateTag.getString("Name")
+            String id = stateTag.getString("id")
+                    .or(() -> stateTag.getString("Name"))
                     .or(() -> stateTag.getString("name"))
                     .or(() -> stateTag.getString("block"))
                     .orElse(null);

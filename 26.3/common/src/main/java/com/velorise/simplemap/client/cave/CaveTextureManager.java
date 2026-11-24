@@ -3451,6 +3451,21 @@ public final class CaveTextureManager {
                 this.singleBiome = singleBiome;
             }
 
+            private static String readPaletteBlockName(ListTag pal, int index, String fallback) {
+                if (pal == null || index < 0 || index >= pal.size()) return fallback;
+                String direct = pal.getString(index).orElse(null);
+                if (direct != null && !direct.isEmpty()) return direct;
+                CompoundTag compound = pal.getCompound(index).orElse(null);
+                if (compound != null) {
+                    String id = compound.getString("id")
+                            .or(() -> compound.getString("Name"))
+                            .or(() -> compound.getString("name"))
+                            .orElse(null);
+                    if (id != null && !id.isEmpty()) return id;
+                }
+                return fallback;
+            }
+
             static DecodedSection decode(CompoundTag secTag, Level level) {
                 CompoundTag bs = secTag.getCompound("block_states").orElse(null);
                 if (bs == null) return null;
@@ -3477,7 +3492,7 @@ public final class CaveTextureManager {
                 byte[] emissions = new byte[size];
                 boolean needsBiomes = false;
                 for (int i = 0; i < size; i++) {
-                    String name = pal.getCompound(i).flatMap(c -> c.getString("Name")).orElse("minecraft:air");
+                    String name = readPaletteBlockName(pal, i, "minecraft:air");
                     blockNames[i] = name;
                     if (name.equals("minecraft:air") || name.equals("minecraft:cave_air") || name.equals("minecraft:void_air")) {
                         kinds[i] = KIND_AIR;

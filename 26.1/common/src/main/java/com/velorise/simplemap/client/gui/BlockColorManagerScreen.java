@@ -59,9 +59,15 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class BlockColorManagerScreen extends Screen {
-    private static final int ROWS = 8;
+    private static final int MAX_ROWS = 8;
+    private static final int MIN_ROWS = 2;
+    private static final int ROW_STRIDE = 22;
+    private static final int HEADER_HEIGHT = 48;
+    private static final int FOOTER_GAP = 4;
+    private static final int FOOTER_HEIGHT = 20;
     private static final int CONTENT_WIDTH = 420;
     private static final int PANEL_PADDING = 8;
+    private static final int OUTER_MARGIN = 6;
     private final Screen parent;
     private final List<java.util.Map.Entry<String, Integer>> filtered = new ArrayList<>();
     private EditBox search;
@@ -75,56 +81,75 @@ public final class BlockColorManagerScreen extends Screen {
 
     @Override
     protected void init() {
+        String previousQuery = search == null ? "" : search.getValue();
         int left = panelLeft();
         int top = panelTop();
-        search = new EditBox(font, left, top + 24, 300, 20, Component.translatable("gui.simplemap.search_blocks"));
+        int contentW = contentWidth();
+        int doneW = Math.min(98, Math.max(64, contentW / 4));
+        int doneX = left + contentW - doneW;
+        int searchW = Math.max(80, doneX - left - 8);
+        search = new EditBox(font, left, top + 20, searchW, 20, Component.translatable("gui.simplemap.search_blocks"));
         search.setHint(Component.translatable("gui.simplemap.hint.search_registry_id"));
+        if (!previousQuery.isEmpty()) {
+            search.setValue(previousQuery);
+        }
         search.setResponder(value -> {
             page = 0;
             rebuildRows();
         });
         addRenderableWidget(search);
         addRenderableWidget(Button.builder(Component.translatable("gui.simplemap.done"), b -> closeToParent())
-                .bounds(left + 322, top + 24, 98, 20).build());
+                .bounds(doneX, top + 20, doneW, 20).build());
         rebuildRows();
     }
 
     private void rebuildRows() {
+        int rows = visibleRows();
         String query = search == null ? "" : search.getValue().trim().toLowerCase(Locale.ROOT);
         filtered.clear();
         MapConfig.blockColorOverrides.entrySet().stream()
                 .filter(entry -> query.isEmpty() || entry.getKey().toLowerCase(Locale.ROOT).contains(query))
                 .sorted(Comparator.comparing(java.util.Map.Entry::getKey))
                 .forEach(filtered::add);
-        int maxPage = Math.max(0, (filtered.size() - 1) / ROWS);
+        int maxPage = Math.max(0, (filtered.size() - 1) / rows);
         page = Math.max(0, Math.min(page, maxPage));
 
         clearWidgets();
         int left = panelLeft();
         int top = panelTop();
+        int contentW = contentWidth();
+        int doneW = Math.min(98, Math.max(64, contentW / 4));
+        int doneX = left + contentW - doneW;
         addRenderableWidget(search);
         addRenderableWidget(Button.builder(Component.translatable("gui.simplemap.done"), b -> closeToParent())
-                .bounds(left + 322, top + 24, 98, 20).build());
+                .bounds(doneX, top + 20, doneW, 20).build());
 
-        int start = page * ROWS;
-        for (int row = 0; row < ROWS && start + row < filtered.size(); row++) {
+        int resetW = 54;
+        int editW = 50;
+        int resetX = left + contentW - resetW;
+        int editX = resetX - 6 - editW;
+        int start = page * rows;
+        for (int row = 0; row < rows && start + row < filtered.size(); row++) {
             java.util.Map.Entry<String, Integer> entry = filtered.get(start + row);
             String id = entry.getKey();
-            int y = top + 52 + row * 23;
+            int y = top + HEADER_HEIGHT + row * ROW_STRIDE;
             addRenderableWidget(Button.builder(Component.translatable("gui.simplemap.edit"), b -> edit(id))
-                    .bounds(left + 306, y, 52, 20).build());
+                    .bounds(editX, y, editW, 20).build());
             addRenderableWidget(Button.builder(Component.translatable("gui.simplemap.reset"), b -> {
                 MapColorProfile.resetBlockOverride(id);
                 rebuildRows();
-            }).bounds(left + 364, y, 56, 20).build());
+            }).bounds(resetX, y, resetW, 20).build());
         }
 
+        int footerY = top + HEADER_HEIGHT + rows * ROW_STRIDE + FOOTER_GAP;
+        int clearW = Math.min(136, Math.max(84, contentW - 180));
+        int clearX = left + contentW - clearW;
         addRenderableWidget(Button.builder(Component.literal("<"), b -> {
             if (page > 0) { page--; rebuildRows(); }
-        }).bounds(left, top + 241, 36, 20).build());
+        }).bounds(left, footerY, 32, 20).build());
         addRenderableWidget(Button.builder(Component.literal(">"), b -> {
-            if ((page + 1) * ROWS < filtered.size()) { page++; rebuildRows(); }
-        }).bounds(left + 42, top + 241, 36, 20).build());
+            if ((page + 1) * rows < filtered.size()) { page++; rebuildRows(); }
+        }).bounds(left + 36, footerY, 32, 20).build());
         addRenderableWidget(Button.builder(Component.translatable(confirmClear ? "gui.simplemap.confirm_clear_all" : "gui.simplemap.clear_all"), b -> {
             if (!confirmClear) {
                 confirmClear = true;
@@ -134,7 +159,7 @@ public final class BlockColorManagerScreen extends Screen {
                 MapColorProfile.clearAllBlockOverrides();
                 rebuildRows();
             }
-        }).bounds(left + 280, top + 241, 140, 20).build());
+        }).bounds(clearX, footerY, clearW, 20).build());
     }
 
     private void edit(String blockId) {
@@ -154,41 +179,67 @@ public final class BlockColorManagerScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        int rows = visibleRows();
         int left = panelLeft();
         int top = panelTop();
-        graphics.fill(left - PANEL_PADDING, top - PANEL_PADDING, left + CONTENT_WIDTH + PANEL_PADDING, top + 270, 0xF0111215);
-        graphics.outline(left - PANEL_PADDING, top - PANEL_PADDING, CONTENT_WIDTH + PANEL_PADDING * 2, 278, 0xFF3B3E44);
+        int contentW = contentWidth();
+        int contentH = contentHeight();
+        graphics.fill(left - PANEL_PADDING, top - PANEL_PADDING, left + contentW + PANEL_PADDING, top + contentH + PANEL_PADDING, 0xF0111215);
+        graphics.outline(left - PANEL_PADDING, top - PANEL_PADDING, contentW + PANEL_PADDING * 2, contentH + PANEL_PADDING * 2, 0xFF3B3E44);
         graphics.text(font, title, left, top, 0xFFFFFFFF, false);
 
-        int start = page * ROWS;
-        for (int row = 0; row < ROWS && start + row < filtered.size(); row++) {
+        int editX = left + contentW - 54 - 6 - 50;
+        int maxIdWidth = Math.max(40, editX - (left + 25) - 6);
+        int start = page * rows;
+        for (int row = 0; row < rows && start + row < filtered.size(); row++) {
             java.util.Map.Entry<String, Integer> entry = filtered.get(start + row);
-            int y = top + 52 + row * 23;
+            int y = top + HEADER_HEIGHT + row * ROW_STRIDE;
             int color = 0xFF000000 | (entry.getValue() & 0x00FFFFFF);
             graphics.fill(left, y + 2, left + 18, y + 18, color);
             graphics.outline(left, y + 2, 18, 16, 0xFFFFFFFF);
-            graphics.text(font, entry.getKey(), left + 25, y + 6, 0xFFE0E0E0, false);
+            String label = font.plainSubstrByWidth(entry.getKey(), maxIdWidth);
+            graphics.text(font, label, left + 25, y + 6, 0xFFE0E0E0, false);
         }
-        int pages = Math.max(1, (filtered.size() + ROWS - 1) / ROWS);
-        graphics.text(font,
-                Component.translatable("gui.simplemap.block_colors.page_info", filtered.size(), page + 1, pages),
-                left + 88, top + 247, 0xFF9A9A9A, false);
+        int pages = Math.max(1, (filtered.size() + rows - 1) / rows);
+        int footerY = top + HEADER_HEIGHT + rows * ROW_STRIDE + FOOTER_GAP;
+        int clearW = Math.min(136, Math.max(84, contentW - 180));
+        int maxPageInfoW = Math.max(30, left + contentW - clearW - (left + 74) - 6);
+        String pageInfo = font.plainSubstrByWidth(
+                Component.translatable("gui.simplemap.block_colors.page_info", filtered.size(), page + 1, pages).getString(),
+                maxPageInfoW);
+        graphics.text(font, pageInfo, left + 74, footerY + 6, 0xFF9A9A9A, false);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        int rows = visibleRows();
         if (scrollY > 0 && page > 0) { page--; rebuildRows(); return true; }
-        if (scrollY < 0 && (page + 1) * ROWS < filtered.size()) { page++; rebuildRows(); return true; }
+        if (scrollY < 0 && (page + 1) * rows < filtered.size()) { page++; rebuildRows(); return true; }
         return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
+    private int contentWidth() {
+        return Math.max(240, Math.min(CONTENT_WIDTH, width - (PANEL_PADDING + OUTER_MARGIN) * 2));
+    }
+
+    private int visibleRows() {
+        int available = height - (OUTER_MARGIN + PANEL_PADDING) * 2 - HEADER_HEIGHT - FOOTER_GAP - FOOTER_HEIGHT;
+        return Math.max(MIN_ROWS, Math.min(MAX_ROWS, available / ROW_STRIDE));
+    }
+
+    private int contentHeight() {
+        return HEADER_HEIGHT + visibleRows() * ROW_STRIDE + FOOTER_GAP + FOOTER_HEIGHT;
+    }
+
     private int panelLeft() {
-        return Math.max(10, (width - CONTENT_WIDTH) / 2);
+        return Math.max(OUTER_MARGIN + PANEL_PADDING, (width - contentWidth()) / 2);
     }
 
     private int panelTop() {
-        return Math.max(10, Math.min(height - 270, height / 2 - 132));
+        int minTop = OUTER_MARGIN + PANEL_PADDING;
+        int maxTop = Math.max(minTop, height - OUTER_MARGIN - PANEL_PADDING - contentHeight());
+        return Math.max(minTop, Math.min(maxTop, (height - contentHeight()) / 2));
     }
 
     private void closeToParent() {
@@ -223,10 +274,14 @@ public final class BlockColorManagerScreen extends Screen {
             this.automaticColor = automaticColor;
         }
 
+        private int panelTop() {
+            return Math.max(8, Math.min(Math.max(8, this.height - 174), this.height / 2 - 83));
+        }
+
         @Override
         protected void init() {
             int left = this.width / 2 - 120;
-            int top = Math.max(14, this.height / 2 - 90);
+            int top = panelTop() + 6;
             int currentColor = MapConfig.blockColorOverrides.getOrDefault(blockId, automaticColor);
 
             colorInput = new EditBox(this.font, left, top + 48, 160, 20, Component.translatable("gui.simplemap.narration.block_hex_color"));
@@ -304,7 +359,7 @@ public final class BlockColorManagerScreen extends Screen {
         @Override
         public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
             int left = this.width / 2 - 126;
-            int top = Math.max(8, this.height / 2 - 96);
+            int top = panelTop();
             guiGraphics.fill(0, 0, this.width, this.height, 0x88000000);
             guiGraphics.fill(left, top, left + 252, top + 166, 0xF0111215);
             guiGraphics.outline(left, top, 252, 166, 0xFF3B3E44);

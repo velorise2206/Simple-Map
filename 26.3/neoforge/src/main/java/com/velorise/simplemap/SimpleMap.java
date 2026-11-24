@@ -526,6 +526,10 @@ public class SimpleMap {
         }
 
         private static void drain(KeyMapping mapping, Runnable action) {
+            if (mapping.isUnbound()) {
+                discard(mapping);
+                return;
+            }
             if (!mapping.consumeClick()) return;
             action.run();
             discard(mapping); // Collapse key-repeat bursts into one action per client tick.
@@ -645,7 +649,7 @@ public class SimpleMap {
 
         @SubscribeEvent
         public static void onChatMouseClicked(ScreenEvent.MouseButtonPressed.Pre event) {
-            if (event.getButton() != 0) return;
+            if (event.getButton() != InputConstants.MOUSE_BUTTON_LEFT) return;
             if (!(event.getScreen() instanceof net.minecraft.client.gui.screens.ChatScreen)) return;
             Minecraft mc = Minecraft.getInstance();
             if (mc.gui == null || mc.gui.hud == null || mc.gui.hud.getChat() == null) return;

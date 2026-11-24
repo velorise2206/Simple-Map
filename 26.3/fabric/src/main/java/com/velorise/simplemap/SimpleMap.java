@@ -455,6 +455,10 @@ public class SimpleMap implements ModInitializer {
         }
 
         private static void drain(KeyMapping mapping, Runnable action) {
+            if (mapping.isUnbound()) {
+                discard(mapping);
+                return;
+            }
             if (!mapping.consumeClick()) return;
             action.run();
             discard(mapping);
@@ -562,7 +566,7 @@ public class SimpleMap implements ModInitializer {
         }
 
         public static boolean onChatMouseClicked(Screen screen, double mouseX, double mouseY, int button) {
-            if (button != 0) return false;
+            if (button != InputConstants.MOUSE_BUTTON_LEFT) return false;
             if (!(screen instanceof net.minecraft.client.gui.screens.ChatScreen)) return false;
             Minecraft mc = Minecraft.getInstance();
             if (mc.gui == null || mc.gui.hud == null || mc.gui.hud.getChat() == null) return false;

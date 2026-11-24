@@ -1387,7 +1387,7 @@ public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, b
     if (!(parent instanceof MapScreen)) {
         return super.mouseClicked(event, doubleClick);
     }
-    if (button == 0) {
+    if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
         int size = MapConfig.minimapSize;
         int[] minimapPosition = MinimapPosition.resolve(this.width, this.height, size);
         int x = minimapPosition[0];
@@ -1479,7 +1479,7 @@ public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) 
     if (!(parent instanceof MapScreen)) {
         return super.mouseReleased(event);
     }
-    if (button == 0) {
+    if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
         isDraggingMinimap = false;
         isDraggingCoords = false;
     }

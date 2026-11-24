@@ -1574,7 +1574,7 @@ public class MapManager {
             net.minecraft.nbt.ListTag pal = bs.getList("palette").orElse(null);
             if (pal == null) continue;
             for (int p = 0; p < pal.size(); p++) {
-                String name = pal.getCompound(p).flatMap(c -> c.getString("Name")).orElse("");
+                String name = readPaletteBlockName(pal, p, "");
                 if (name != null && !name.isEmpty() && classifier.info(name).leaves()) {
                     return true;
                 }
@@ -2025,6 +2025,21 @@ public class MapManager {
         return backfilledAny;
     }
 
+    private static String readPaletteBlockName(net.minecraft.nbt.ListTag pal, int index, String fallback) {
+        if (pal == null || index < 0 || index >= pal.size()) return fallback;
+        String direct = pal.getString(index).orElse(null);
+        if (direct != null && !direct.isEmpty()) return direct;
+        net.minecraft.nbt.CompoundTag compound = pal.getCompound(index).orElse(null);
+        if (compound != null) {
+            String id = compound.getString("id")
+                    .or(() -> compound.getString("Name"))
+                    .or(() -> compound.getString("name"))
+                    .orElse(null);
+            if (id != null && !id.isEmpty()) return id;
+        }
+        return fallback;
+    }
+
     private static boolean isAllAirSection(net.minecraft.nbt.CompoundTag secTag) {
         if (secTag == null) return true;
         net.minecraft.nbt.CompoundTag bs = secTag.getCompound("block_states").orElse(null);
@@ -2032,7 +2047,7 @@ public class MapManager {
         net.minecraft.nbt.ListTag pal = bs.getList("palette").orElse(null);
         if (pal == null || pal.isEmpty()) return true;
         if (pal.size() == 1) {
-            String onlyName = pal.getCompound(0).flatMap(c -> c.getString("Name")).orElse("minecraft:air");
+            String onlyName = readPaletteBlockName(pal, 0, "minecraft:air");
             return isAirOrBarrierBlockName(onlyName);
         }
         return false;
@@ -2128,7 +2143,7 @@ public class MapManager {
             int size = pal.size();
             String[] names = new String[size];
             for (int i = 0; i < size; i++) {
-                names[i] = pal.getCompound(i).flatMap(c -> c.getString("Name")).orElse("minecraft:air");
+                names[i] = readPaletteBlockName(pal, i, "minecraft:air");
             }
             byte[] bl = null;
             byte[] rawBl = secTag.getByteArray("BlockLight").orElse(null);

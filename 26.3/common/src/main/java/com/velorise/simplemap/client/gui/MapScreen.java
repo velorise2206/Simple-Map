@@ -2029,7 +2029,7 @@ public class MapScreen extends Screen {
         }
 
         // 1. If context menu is open, handle its options first
-        if (isPopupMenuOpen && button == 0) {
+        if (isPopupMenuOpen && button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             int menuWidth = getPopupMenuWidth();
             int menuHeight = getPopupMenuHeight();
             int rowsStartY = (int) Math.round(popupY) + POPUP_HEADER_HEIGHT + 1;
@@ -2148,7 +2148,7 @@ public class MapScreen extends Screen {
         }
 
         // 3. Left click: start drag tracking; determine if it's a click vs drag on mouseReleased
-        if (button == 0) {
+        if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             if (openAnimationStartNanos != 0L) {
                 this.visualScale = this.currentRenderScale;
             }
@@ -2169,7 +2169,7 @@ public class MapScreen extends Screen {
         }
 
         // 4. Right click opens the popup context menu (clamped inside screen bounds)
-        if (button == 1) {
+        if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT) {
             popupWorldX = centerX + (mouseX - this.width / 2.0) / currentRenderScale;
             popupWorldZ = centerZ + (mouseY - this.height / 2.0) / currentRenderScale;
 
@@ -2232,7 +2232,7 @@ public class MapScreen extends Screen {
     @Override
     public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) {
         double mouseX = event.x(); double mouseY = event.y(); int button = event.button();
-        if (button == 0) {
+        if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             if (this.caveLayerSlider != null && this.caveLayerSlider.isDragging()) {
                 this.caveLayerSlider.onRelease(event);
                 this.setDragging(false);

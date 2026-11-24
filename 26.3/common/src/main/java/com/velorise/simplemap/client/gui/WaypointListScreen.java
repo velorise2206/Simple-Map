@@ -319,12 +319,12 @@ public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, b
         double mouseX = event.x(); double mouseY = event.y(); int button = event.button();
     if (super.mouseClicked(event, doubleClick)) return true;
     if (!isInsidePanel(mouseX, mouseY)) {
-        if (button == 0) {
+        if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             draggingMap = true;
             dragStartX = mouseX;
             dragStartY = mouseY;
             return true;
-        } else if (button == 1 && minecraft != null) {
+        } else if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT && minecraft != null) {
             float backgroundScale = Math.max(0.0625f, previewScale);
             double anchorScreenX = getMapAreaCenterX();
             double anchorScreenY = this.height * 0.5;
@@ -338,7 +338,7 @@ public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, b
         }
         return false;
     }
-    if (button != 0 || mouseY < listTop() || mouseY > listBottom()) return false;
+    if (button != com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT || mouseY < listTop() || mouseY > listBottom()) return false;
 
     int left = listLeft();
     int width = listWidth();
@@ -383,7 +383,7 @@ public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, b
 @Override
 public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event, double dragX, double dragY) {
         double mouseX = event.x(); double mouseY = event.y(); int button = event.button();
-    if (draggingMap && button == 0) {
+    if (draggingMap && button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
         previewCenterX -= dragX / Math.max(0.01f, previewScale);
         previewCenterZ -= dragY / Math.max(0.01f, previewScale);
         return true;
@@ -394,7 +394,7 @@ public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event, d
 @Override
 public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) {
         double mouseX = event.x(); double mouseY = event.y(); int button = event.button();
-    if (draggingMap && button == 0) {
+    if (draggingMap && button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
         draggingMap = false;
         return true;
     }
@@ -1195,12 +1195,12 @@ public static class AddWaypointScreen extends Screen {
         double mouseX = event.x(); double mouseY = event.y(); int button = event.button();
         if (super.mouseClicked(event, doubleClick)) return true;
         if (!isInsidePanel(mouseX, mouseY)) {
-            if (button == 0) {
+            if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
                 draggingMap = true;
                 dragStartX = mouseX;
                 dragStartY = mouseY;
                 return true;
-            } else if (button == 1) {
+            } else if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT) {
                 double anchorScreenX = getMapAreaCenterX();
                 double anchorScreenY = this.height * 0.5;
                 double mapCenterX = (draftX + mapPanOffsetX)
@@ -1221,7 +1221,7 @@ public static class AddWaypointScreen extends Screen {
     @Override
     public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event, double dragX, double dragY) {
         double mouseX = event.x(); double mouseY = event.y(); int button = event.button();
-        if (draggingMap && button == 0) {
+        if (draggingMap && button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             mapPanOffsetX -= dragX / Math.max(0.01f, previewScale);
             mapPanOffsetZ -= dragY / Math.max(0.01f, previewScale);
             return true;
@@ -1232,7 +1232,7 @@ public static class AddWaypointScreen extends Screen {
     @Override
     public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) {
         double mouseX = event.x(); double mouseY = event.y(); int button = event.button();
-        if (draggingMap && button == 0) {
+        if (draggingMap && button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
             draggingMap = false;
             if (Math.hypot(mouseX - dragStartX, mouseY - dragStartY) < 4.0
                     && !isInsidePanel(mouseX, mouseY)) {
@@ -1497,13 +1497,13 @@ public static class AddWaypointScreen extends Screen {
         public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
         double mouseX = event.x(); double mouseY = event.y(); int button = event.button();
             if (super.mouseClicked(event, doubleClick)) return true;
-            if (button == 0) {
+            if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
                 dragging = true;
                 pressX = mouseX;
                 pressY = mouseY;
                 return true;
             }
-            if (button == 1) {
+            if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_RIGHT) {
                 onClose();
                 return true;
             }
@@ -1513,7 +1513,7 @@ public static class AddWaypointScreen extends Screen {
         @Override
         public boolean mouseDragged(net.minecraft.client.input.MouseButtonEvent event, double dragX, double dragY) {
         double mouseX = event.x(); double mouseY = event.y(); int button = event.button();
-            if (dragging && button == 0) {
+            if (dragging && button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
                 centerX -= dragX / scale;
                 centerZ -= dragY / scale;
                 return true;
@@ -1524,7 +1524,7 @@ public static class AddWaypointScreen extends Screen {
         @Override
         public boolean mouseReleased(net.minecraft.client.input.MouseButtonEvent event) {
         double mouseX = event.x(); double mouseY = event.y(); int button = event.button();
-            if (button == 0 && dragging) {
+            if (button == com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT && dragging) {
                 dragging = false;
                 double moved = Math.hypot(mouseX - pressX, mouseY - pressY);
                 if (moved < 4.0) {
