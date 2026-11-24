@@ -7,6 +7,7 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkPacketData;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
 import org.spongepowered.asm.mixin.Mixin;
@@ -48,14 +49,14 @@ public abstract class SimpleMapClientPacketListenerMixin {
                 section.getX(), section.getZ());
     }
 
-    // handleLevelChunkWithLight always delegates to updateLevelChunk. The map must
+    // handleLevelChunkWithLight replaces updateLevelChunk in 26.3. The map must
     // observe the chunk only after vanilla has applied the packet. At HEAD the
     // client chunk can still be its empty placeholder; recording that placeholder
     // produced permanently-complete black 16x16 tiles.
-    @Inject(method = "updateLevelChunk", at = @At("TAIL"))
-    private void simplemap$onChunkData(int chunkX, int chunkZ,
-            ClientboundLevelChunkPacketData packet, CallbackInfo callback) {
-        MapMutationBus.getInstance().onChunkData(chunkX, chunkZ);
+    @Inject(method = "handleLevelChunkWithLight", at = @At("TAIL"))
+    private void simplemap$onChunkData(ClientboundLevelChunkWithLightPacket packet,
+            CallbackInfo callback) {
+        MapMutationBus.getInstance().onChunkData(packet.x(), packet.z());
     }
 
     @Inject(method = "handleLightUpdatePacket",
@@ -66,7 +67,7 @@ public abstract class SimpleMapClientPacketListenerMixin {
         MapMutationBus.getInstance().onLightUpdate(packet.x(), packet.z());
     }
 
-    @Inject(method = "queueLightRemoval", at = @At("HEAD"))
+    @Inject(method = "handleForgetLevelChunk", at = @At("HEAD"))
     private void simplemap$onChunkUnload(ClientboundForgetLevelChunkPacket packet,
             CallbackInfo callback) {
         MapMutationBus.getInstance().onChunkUnload(
