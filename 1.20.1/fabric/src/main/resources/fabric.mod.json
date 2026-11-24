@@ -9,8 +9,8 @@
   ],
   "contact": {
     "homepage": "https://modrinth.com/mod/velorise-simple-map",
-    "sources": "https://github.com/hungbbdzz/Simple-Map",
-    "issues": "https://github.com/hungbbdzz/Simple-Map/issues"
+    "sources": "https://github.com/velorise2206/Simple-Map",
+    "issues": "https://github.com/velorise2206/Simple-Map/issues"
   },
   "license": "${mod_license}",
   "icon": "logo.png",
