@@ -79,10 +79,25 @@ public class MapScreen extends Screen {
     private static final int POPUP_ROW_HEIGHT = 20;
     private static final double MOMENTUM_FRICTION = 7.5;
     private static final double MAX_MOMENTUM_BLOCKS_PER_SECOND = 12_000.0;
+    private static final double ZOOM_SMOOTH_SPEED = 18.0;
     double centerX;
     double centerZ;
     float scale = DEFAULT_MAP_SCALE;
+    private float visualScale = DEFAULT_MAP_SCALE;
     private float currentRenderScale = DEFAULT_MAP_SCALE;
+    private boolean zoomAnchorActive = false;
+    private double zoomAnchorWorldX;
+    private double zoomAnchorWorldZ;
+    private double zoomAnchorScreenOffsetX;
+    private double zoomAnchorScreenOffsetZ;
+    private double dragAnchorCenterX;
+    private double dragAnchorCenterZ;
+    private double dragAnchorMouseX;
+    private double dragAnchorMouseY;
+    private double dragCurrentMouseX;
+    private double dragCurrentMouseY;
+    private double dragLastSampleCenterX;
+    private double dragLastSampleCenterZ;
     private boolean isDragging = false;
     private long openAnimationStartNanos = System.nanoTime();
     private long lastFrameNanos;
@@ -169,6 +184,7 @@ public class MapScreen extends Screen {
         centerX = waypoint.x;
         centerZ = waypoint.z;
         scale = Math.max(getMinimumStableScale(), 0.75f);
+        visualScale = scale;
         currentRenderScale = scale;
         cancelMotionAndOpenAnimation();
         cursorCacheValid = false;
@@ -195,6 +211,7 @@ public class MapScreen extends Screen {
         centerX = targetX;
         centerZ = targetZ;
         scale = Math.max(getMinimumStableScale(), Math.max(scale, 1.25f));
+        visualScale = scale;
         currentRenderScale = scale;
         focusedCoordinateX = targetX;
         focusedCoordinateZ = targetZ;
@@ -240,6 +257,7 @@ public class MapScreen extends Screen {
         }
         if (this.width > 0 && !this.hasFocusedCoordinateOverride) {
             this.scale = Math.max(getMinimumStableScale(), (this.width - 2) / 1000.0f);
+            this.visualScale = this.scale;
             this.currentRenderScale = this.scale;
         }
 
@@ -297,6 +315,8 @@ public class MapScreen extends Screen {
                     this.centerX = this.minecraft.player.getX();
                     this.centerZ = this.minecraft.player.getZ();
                     this.scale = DEFAULT_MAP_SCALE;
+                    this.visualScale = this.scale;
+                    this.currentRenderScale = this.scale;
                     clampScaleForCurrentMode();
                     cancelMotionAndOpenAnimation();
                     FullscreenMapFramebufferRenderer.getInstance().invalidate();
@@ -557,6 +577,7 @@ public class MapScreen extends Screen {
         momentumX = 0.0;
         momentumZ = 0.0;
         openAnimationStartNanos = 0L;
+        zoomAnchorActive = false;
     }
 
     private float openAnimationMultiplier(long now) {
@@ -580,7 +601,58 @@ public class MapScreen extends Screen {
         }
         double seconds = Math.min(0.050, Math.max(0.0, (now - lastFrameNanos) / 1_000_000_000.0));
         lastFrameNanos = now;
-        if (isDragging || seconds <= 0.0) return;
+        if (seconds <= 0.0) return;
+
+        // Smooth zoom interpolation in log-space (cursor-anchored when zooming via mouse wheel)
+        if (Math.abs(visualScale - scale) > scale * 0.0005f) {
+            double logVisual = Math.log(Math.max(1e-5, visualScale));
+            double logTarget = Math.log(Math.max(1e-5, scale));
+            double factor = 1.0 - Math.exp(-ZOOM_SMOOTH_SPEED * seconds);
+            double nextLog = logVisual + (logTarget - logVisual) * factor;
+            if (Math.abs(logTarget - nextLog) < 0.0005) {
+                visualScale = scale;
+            } else {
+                visualScale = (float) Math.exp(nextLog);
+            }
+            if (zoomAnchorActive) {
+                centerX = zoomAnchorWorldX - zoomAnchorScreenOffsetX / visualScale;
+                centerZ = zoomAnchorWorldZ - zoomAnchorScreenOffsetZ / visualScale;
+            }
+            if (visualScale == scale) {
+                zoomAnchorActive = false;
+            }
+        } else if (visualScale != scale) {
+            visualScale = scale;
+            if (zoomAnchorActive) {
+                centerX = zoomAnchorWorldX - zoomAnchorScreenOffsetX / visualScale;
+                centerZ = zoomAnchorWorldZ - zoomAnchorScreenOffsetZ / visualScale;
+                zoomAnchorActive = false;
+            }
+        }
+
+        if (isDragging) {
+            double activeScale = Math.max(0.0001f, this.visualScale);
+            double targetCenterX = dragAnchorCenterX - (dragCurrentMouseX - dragAnchorMouseX) / activeScale;
+            double targetCenterZ = dragAnchorCenterZ - (dragCurrentMouseY - dragAnchorMouseY) / activeScale;
+            double stepX = targetCenterX - dragLastSampleCenterX;
+            double stepZ = targetCenterZ - dragLastSampleCenterZ;
+            this.centerX = targetCenterX;
+            this.centerZ = targetCenterZ;
+            if (Math.abs(stepX) > 1e-6 || Math.abs(stepZ) > 1e-6) {
+                double sampleDt = lastDragSampleNanos == 0L ? seconds
+                        : Math.max(0.001, Math.min(0.050, (now - lastDragSampleNanos) / 1_000_000_000.0));
+                momentumX = clampMomentum(momentumX * 0.35 + (stepX / sampleDt) * 0.65);
+                momentumZ = clampMomentum(momentumZ * 0.35 + (stepZ / sampleDt) * 0.65);
+                dragLastSampleCenterX = targetCenterX;
+                dragLastSampleCenterZ = targetCenterZ;
+                lastDragSampleNanos = now;
+            } else if (now - lastDragSampleNanos > 60_000_000L) {
+                double holdDecay = Math.exp(-MOMENTUM_FRICTION * 2.0 * seconds);
+                momentumX *= holdDecay;
+                momentumZ *= holdDecay;
+            }
+            return;
+        }
         if (Math.abs(momentumX) < 0.5 && Math.abs(momentumZ) < 0.5) {
             momentumX = 0.0;
             momentumZ = 0.0;
@@ -605,7 +677,7 @@ public class MapScreen extends Screen {
         long frameNow = System.nanoTime();
         updateMomentum(frameNow);
         clampScaleForCurrentMode();
-        currentRenderScale = scale * openAnimationMultiplier(frameNow);
+        currentRenderScale = visualScale * openAnimationMultiplier(frameNow);
         // AUTO is a live view: keep the compact Y readout synchronized with the
         // player's stable scan band without turning the slider into manual mode.
         if (caveLayerSlider != null && !caveLayerSlider.isDragging()
@@ -977,7 +1049,7 @@ public class MapScreen extends Screen {
         // performance tests use the same unit.
         double guiScale = this.minecraft == null || this.minecraft.getWindow() == null
                 ? 1.0D : Math.max(1.0D, this.minecraft.getWindow().getGuiScale());
-        float displayedScale = (float) (Math.max(getMinimumStableScale(), this.scale)
+        float displayedScale = (float) (Math.max(getMinimumStableScale(), this.currentRenderScale)
                 * guiScale);
         int decimals = displayedScale < 1.0f ? 3 : displayedScale < 10.0f ? 2 : 1;
         int divisor = decimals == 3 ? 1000 : decimals == 2 ? 100 : 10;
@@ -1813,6 +1885,7 @@ public class MapScreen extends Screen {
         return isDragging
                 || (caveLayerSlider != null && caveLayerSlider.isDragging())
                 || Math.abs(momentumX) > 0.5 || Math.abs(momentumZ) > 0.5
+                || Math.abs(visualScale - scale) > scale * 0.001f
                 || nowNanos - lastViewportInteractionNanos
                         < ACTIVE_PAN_SETTLE_NANOS;
     }
@@ -1827,12 +1900,20 @@ public class MapScreen extends Screen {
         if (SimpleMap.ClientModEvents.ZOOM_IN_KEY.matches(keyCode, scanCode)) {
             consumeBufferedClicks(SimpleMap.ClientModEvents.ZOOM_IN_KEY);
             markViewportInteraction();
+            if (openAnimationStartNanos != 0L) {
+                this.visualScale = this.currentRenderScale;
+            }
+            cancelMotionAndOpenAnimation();
             this.scale = Math.min(12.0f, this.scale * 1.15f);
             return true;
         }
         if (SimpleMap.ClientModEvents.ZOOM_OUT_KEY.matches(keyCode, scanCode)) {
             consumeBufferedClicks(SimpleMap.ClientModEvents.ZOOM_OUT_KEY);
             markViewportInteraction();
+            if (openAnimationStartNanos != 0L) {
+                this.visualScale = this.currentRenderScale;
+            }
+            cancelMotionAndOpenAnimation();
             this.scale = Math.max(getMinimumStableScale(), this.scale / 1.15f);
             return true;
         }
@@ -1844,6 +1925,9 @@ public class MapScreen extends Screen {
             this.centerX = this.minecraft.player.getX();
             this.centerZ = this.minecraft.player.getZ();
             this.scale = DEFAULT_MAP_SCALE;
+            this.visualScale = this.scale;
+            this.currentRenderScale = this.scale;
+            cancelMotionAndOpenAnimation();
             return true;
         }
         if (MapDebugRecorder.DEBUG_ENABLED) {
@@ -2029,10 +2113,21 @@ public class MapScreen extends Screen {
 
         // 3. Left click: start drag tracking; determine if it's a click vs drag on mouseReleased
         if (button == 0) {
+            if (openAnimationStartNanos != 0L) {
+                this.visualScale = this.currentRenderScale;
+            }
             cancelMotionAndOpenAnimation();
             this.isDragging = true;
             dragStartX = mouseX;
             dragStartZ = mouseY;
+            dragAnchorMouseX = mouseX;
+            dragAnchorMouseY = mouseY;
+            dragCurrentMouseX = mouseX;
+            dragCurrentMouseY = mouseY;
+            dragAnchorCenterX = this.centerX;
+            dragAnchorCenterZ = this.centerZ;
+            dragLastSampleCenterX = this.centerX;
+            dragLastSampleCenterZ = this.centerZ;
             lastDragSampleNanos = System.nanoTime();
             return true;
         }
@@ -2141,22 +2236,9 @@ public class MapScreen extends Screen {
 
         if (this.isDragging) {
             markViewportInteraction();
-            // Drag direction moves the map camera center in the opposite direction.
-            double deltaX = -dragX / this.scale;
-            double deltaZ = -dragY / this.scale;
-            this.centerX += deltaX;
-            this.centerZ += deltaZ;
-            long now = System.nanoTime();
-            double seconds = lastDragSampleNanos == 0L ? 0.0
-                    : Math.max(0.001, Math.min(0.050,
-                            (now - lastDragSampleNanos) / 1_000_000_000.0));
-            lastDragSampleNanos = now;
-            if (seconds > 0.0) {
-                double sampleX = deltaX / seconds;
-                double sampleZ = deltaZ / seconds;
-                momentumX = clampMomentum(momentumX * 0.35 + sampleX * 0.65);
-                momentumZ = clampMomentum(momentumZ * 0.35 + sampleZ * 0.65);
-            }
+            this.zoomAnchorActive = false;
+            this.dragCurrentMouseX = mouseX;
+            this.dragCurrentMouseY = mouseY;
             return true;
         }
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
@@ -2175,8 +2257,12 @@ public class MapScreen extends Screen {
 
     private void clampScaleForCurrentMode() {
         float minimum = getMinimumStableScale();
-        if (this.scale >= minimum) return;
-        this.scale = minimum;
+        if (this.scale < minimum) {
+            this.scale = minimum;
+        }
+        if (this.visualScale < minimum) {
+            this.visualScale = minimum;
+        }
         this.currentRenderScale = Math.max(this.currentRenderScale, minimum);
     }
 
@@ -2187,23 +2273,36 @@ public class MapScreen extends Screen {
         }
 
         markViewportInteraction();
+        if (openAnimationStartNanos != 0L) {
+            this.visualScale = this.currentRenderScale;
+        }
         cancelMotionAndOpenAnimation();
-        float oldScale = this.scale;
-
-        float minimumScale = getMinimumStableScale();
-        this.scale = Math.max(minimumScale,
-                Math.min(12.0f, this.scale + (float) scrollY * 0.15f * this.scale));
 
         // Viewport centre (viewport starts at x=1, y=1)
         double vpCentreX = 1 + (this.width - 2) / 2.0;
         double vpCentreZ = 1 + (this.height - 2) / 2.0;
 
-        // Adjust camera center so that zoom focuses on the mouse cursor location
-        double mouseWorldX = this.centerX + (mouseX - vpCentreX) / oldScale;
-        double mouseWorldZ = this.centerZ + (mouseY - vpCentreZ) / oldScale;
+        // Anchor smooth zoom to the exact world position currently under the mouse cursor
+        this.zoomAnchorScreenOffsetX = mouseX - vpCentreX;
+        this.zoomAnchorScreenOffsetZ = mouseY - vpCentreZ;
+        double anchorScale = Math.max(0.0001f, this.visualScale);
+        this.zoomAnchorWorldX = this.centerX + this.zoomAnchorScreenOffsetX / anchorScale;
+        this.zoomAnchorWorldZ = this.centerZ + this.zoomAnchorScreenOffsetZ / anchorScale;
+        this.zoomAnchorActive = true;
 
-        this.centerX = mouseWorldX - (mouseX - vpCentreX) / this.scale;
-        this.centerZ = mouseWorldZ - (mouseY - vpCentreZ) / this.scale;
+        float minimumScale = getMinimumStableScale();
+        this.scale = Math.max(minimumScale,
+                Math.min(12.0f, this.scale * (float) Math.pow(1.15, scrollY)));
+        if (this.isDragging) {
+            this.dragAnchorMouseX = mouseX;
+            this.dragAnchorMouseY = mouseY;
+            this.dragCurrentMouseX = mouseX;
+            this.dragCurrentMouseY = mouseY;
+            this.dragAnchorCenterX = this.centerX;
+            this.dragAnchorCenterZ = this.centerZ;
+            this.dragLastSampleCenterX = this.centerX;
+            this.dragLastSampleCenterZ = this.centerZ;
+        }
 
         return true;
     }

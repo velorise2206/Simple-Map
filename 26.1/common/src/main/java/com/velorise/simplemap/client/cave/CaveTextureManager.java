@@ -2601,20 +2601,13 @@ public final class CaveTextureManager {
                 var root = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT);
                 String currentDimId = (targetDimId == null || targetDimId.isBlank())
                         ? currentDimensionId() : targetDimId;
-                if (currentDimId.equals("minecraft:overworld")) {
-                    return root.resolve("region").toFile();
-                } else if (currentDimId.equals("minecraft:the_nether")) {
-                    return root.resolve("DIM-1").resolve("region").toFile();
-                } else if (currentDimId.equals("minecraft:the_end")) {
-                    return root.resolve("DIM1").resolve("region").toFile();
-                } else {
-                    Identifier rl = Identifier.tryParse(currentDimId);
-                    if (rl != null) {
-                        return root.resolve("dimensions")
-                                .resolve(rl.getNamespace())
-                                .resolve(rl.getPath())
-                                .resolve("region").toFile();
-                    }
+                Identifier rl = Identifier.tryParse(currentDimId);
+                if (rl != null) {
+                    var dimKey = net.minecraft.resources.ResourceKey.create(
+                            net.minecraft.core.registries.Registries.DIMENSION, rl);
+                    return net.minecraft.world.level.dimension.DimensionType
+                            .getStorageFolder(dimKey, root)
+                            .resolve("region").toFile();
                 }
                 return null;
             } catch (Throwable t) {

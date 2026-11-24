@@ -691,20 +691,13 @@ public class MapManager {
             var root = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT);
             String dimId = (targetDimId == null || targetDimId.isBlank())
                     ? currentDimensionResourceId : targetDimId;
-            if ("minecraft:overworld".equals(dimId)) {
-                return root.resolve("region").toFile();
-            } else if ("minecraft:the_nether".equals(dimId)) {
-                return root.resolve("DIM-1").resolve("region").toFile();
-            } else if ("minecraft:the_end".equals(dimId)) {
-                return root.resolve("DIM1").resolve("region").toFile();
-            } else {
-                net.minecraft.resources.Identifier rl = net.minecraft.resources.Identifier.tryParse(dimId);
-                if (rl != null) {
-                    return root.resolve("dimensions")
-                            .resolve(rl.getNamespace())
-                            .resolve(rl.getPath())
-                            .resolve("region").toFile();
-                }
+            net.minecraft.resources.Identifier rl = net.minecraft.resources.Identifier.tryParse(dimId);
+            if (rl != null) {
+                var dimKey = net.minecraft.resources.ResourceKey.create(
+                        net.minecraft.core.registries.Registries.DIMENSION, rl);
+                return net.minecraft.world.level.dimension.DimensionType
+                        .getStorageFolder(dimKey, root)
+                        .resolve("region").toFile();
             }
         } catch (Throwable ignored) {
         }
