@@ -9,7 +9,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Release-v2.0.6-brightgreen.svg" alt="Release" />
-  <img src="https://img.shields.io/badge/Minecraft-26.1%20%7C%201.21.11%20%7C%201.21.1%20%7C%201.20.1-blue.svg" alt="Minecraft Versions" />
+  <img src="https://img.shields.io/badge/Minecraft-26.2%20%7C%2026.1%20%7C%201.21.11%20%7C%201.21.1%20%7C%201.20.1-blue.svg" alt="Minecraft Versions" />
   <img src="https://img.shields.io/badge/Loaders-NeoForge%20%7C%20Fabric%20%7C%20Forge-orange.svg" alt="Mod Loaders" />
 </p>
 
@@ -23,6 +23,8 @@ This repository contains all official editions of Velorise Simple Map:
 
 | Subfolder | Minecraft Version | Mod Loader | Java | Status | Release Artifact |
 | :--- | :---: | :---: | :---: | :---: | :--- |
+| [`26.2/neoforge/`](26.2/neoforge/) | **26.2** | NeoForge 26.2.0+ | Java 25 | Stable Release | `simplemap-26.2-neoforge-2.0.6.jar` |
+| [`26.2/fabric/`](26.2/fabric/) | **26.2** | Fabric Loader 0.19.2+ | Java 25 | Stable Release | `simplemap-26.2-fabric-2.0.6.jar` |
 | [`26.1/neoforge/`](26.1/neoforge/) | **26.1.2** | NeoForge 26.1.0+ | Java 25 | Stable Release | `simplemap-26.1.2-neoforge-2.0.6.jar` |
 | [`26.1/fabric/`](26.1/fabric/) | **26.1.2** | Fabric Loader 0.19.2+ | Java 25 | Stable Release | `simplemap-26.1.2-fabric-2.0.6.jar` |
 | [`1.21.11/neoforge/`](1.21.11/neoforge/) | **1.21.11** | NeoForge 21.11.0+ | Java 21 | Stable Release | `simplemap-1.21.11-neoforge-2.0.6.jar` |

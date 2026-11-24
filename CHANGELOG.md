@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.0.6] - 2026-11-24
 
 ### Added
-- **Official Ports for Minecraft 1.21.11 & 26.1 (Fabric & NeoForge)**: Added official multi-loader editions for Minecraft `1.21.11` and `26.1` with full feature parity (surface and layered cave mapping, circular minimap, waypoints and pins, Auto Night Mode, and Map Book sharing).
+- **Official Ports for Minecraft 1.21.11, 26.1 & 26.2 (Fabric & NeoForge)**: Added official multi-loader editions for Minecraft `1.21.11`, `26.1`, and `26.2` with full feature parity (surface and layered cave mapping, circular minimap, waypoints and pins, Auto Night Mode, and Map Book sharing).
 
 ### Fixed
 - **Vanilla Color Mode (Snow & Pure-White Blocks)**: Fixed snow and other pure-white (`0xFFFFFFFF`) blocks rendering pink in Vanilla color mode across all supported Minecraft versions (`1.20.1`, `1.21.1`, `1.21.11`, and `26.1`).
