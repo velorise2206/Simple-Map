@@ -1421,17 +1421,13 @@ public boolean mouseClicked(double mouseX, double mouseY, int button) {
         boolean insideCoords = mouseX >= cx - 3 && mouseX < cx + textWidth + 3
                 && mouseY >= cy - 2 && mouseY < cy + textHeight + 2;
 
-        if ((selectedMinimap && !insideMinimap) || (selectedCoords && !insideCoords)) {
-            selectedMinimap = false;
-            selectedCoords = false;
-            isDraggingMinimap = false;
-            isDraggingCoords = false;
-            MapConfig.save();
-            updateWidgetVisibility();
+        // While NOT in position-edit mode, let visible setting buttons/sliders handle clicks first
+        // so buttons sitting on top of a tucked-away minimap remain cleanly clickable.
+        if (!selectedMinimap && !selectedCoords && super.mouseClicked(mouseX, mouseY, button)) {
             return true;
         }
 
-        // 1. Check Minimap click
+        // 1. Check Minimap click (works both to enter edit mode and to grab while already editing)
         if (insideMinimap) {
             this.selectedMinimap = true;
             this.selectedCoords = false;
@@ -1444,7 +1440,7 @@ public boolean mouseClicked(double mouseX, double mouseY, int button) {
             return true;
         }
 
-        // 2. Check Coords click
+        // 2. Check Coords click (works both to enter edit mode and to grab while already editing)
         if (insideCoords) {
             this.selectedCoords = true;
             this.selectedMinimap = false;
@@ -1454,6 +1450,27 @@ public boolean mouseClicked(double mouseX, double mouseY, int button) {
             this.dragCoordsOffsetY = mouseY - cy;
             return true;
         }
+
+        // 3. Clicking empty space while already in position-edit mode -> exit edit mode & save
+        if (selectedMinimap || selectedCoords) {
+            selectedMinimap = false;
+            selectedCoords = false;
+            isDraggingMinimap = false;
+            isDraggingCoords = false;
+            MapConfig.save();
+            updateWidgetVisibility();
+            return true;
+        }
+
+        // 4. Clicking empty space on Map or Coords tab -> enter position-edit mode
+        // (hides setting widgets so a minimap/coords hidden behind buttons can be grabbed easily)
+        if (activeTab == 0 || activeTab == 1) {
+            this.selectedMinimap = (activeTab == 0);
+            this.selectedCoords = (activeTab == 1);
+            updateWidgetVisibility();
+            return true;
+        }
+        return false;
     }
     return super.mouseClicked(mouseX, mouseY, button);
 }
