@@ -505,10 +505,11 @@ public final class SurfaceColorizer {
 
         MapVisualClassifier.VisualInfo visual = blockName == null
                 ? null : MapVisualClassifier.getInstance().info(blockName);
-        /* Fixed-colour foliage (vanilla cherry and modded equivalents classified
-         * the same way) keeps its texture and never receives a biome multiplier. */
+        /* Fixed-colour foliage and snow layers keep their resolved color and never
+         * receive a biome multiplier; avoid falling back to cherry pink for snow. */
         if (visual != null && visual.fixedTextureColor()) {
-            return texture != 0 ? texture : 0xFFE0A1B8;
+            if (texture != 0) return texture;
+            return visual.leaves() ? 0xFFE0A1B8 : 0xFFFFFFFF;
         }
 
         BlockTintPolicy policy = blockName == null

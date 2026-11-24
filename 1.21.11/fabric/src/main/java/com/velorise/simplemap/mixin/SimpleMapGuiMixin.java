@@ -15,6 +15,7 @@ public abstract class SimpleMapGuiMixin {
     @Inject(method = "render", at = @At("TAIL"))
     private void simplemap$onRenderGui(GuiGraphics guiGraphics, DeltaTracker deltaTracker,
             CallbackInfo callback) {
-        SimpleMap.ClientGameEvents.onRenderGui(guiGraphics);
+        SimpleMap.ClientGameEvents.onRenderGui(
+                guiGraphics, deltaTracker.getGameTimeDeltaPartialTick(true));
     }
 }

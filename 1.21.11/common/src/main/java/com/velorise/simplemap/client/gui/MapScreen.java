@@ -725,6 +725,7 @@ public class MapScreen extends Screen {
         }
 
         // Draw GUI widgets (buttons)
+        guiGraphics.nextStratum();
         drawToolbarBackground(guiGraphics);
         drawCaveControlBackground(guiGraphics);
         super.render(guiGraphics, mouseX, mouseY, partialTick);
@@ -797,13 +798,18 @@ public class MapScreen extends Screen {
     public static void drawSolidCircleHelper(GuiGraphics guiGraphics, float cx, float cy, float radius, int numSegments,
             int color, float z) {
         if (radius <= 0.5f) return;
-        int drawSize = Math.max(2, Math.round(radius * 2.0f));
-        int texSize = drawSize <= 32 ? 32 : (drawSize <= 96 ? 128 : 256);
+        int approxDiameter = Math.max(2, Math.round(radius * 2.0f));
+        int texSize = approxDiameter <= 32 ? 32 : (approxDiameter <= 96 ? 128 : 256);
         net.minecraft.resources.Identifier id = getOrCreateCircleTexture(texSize, 0.0f, color);
-        int x0 = Math.round(cx - drawSize * 0.5f);
-        int y0 = Math.round(cy - drawSize * 0.5f);
+        float outerTexR = texSize * 0.5f - 1.0f;
+        float scaleFactor = radius / outerTexR;
+        int halfTex = texSize / 2;
+        guiGraphics.pose().pushMatrix();
+        guiGraphics.pose().translate(cx, cy);
+        guiGraphics.pose().scale(scaleFactor, scaleFactor);
         guiGraphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, id,
-                x0, y0, 0.0f, 0.0f, drawSize, drawSize, texSize, texSize, texSize, texSize);
+                -halfTex, -halfTex, 0.0f, 0.0f, texSize, texSize, texSize, texSize, texSize, texSize);
+        guiGraphics.pose().popMatrix();
     }
 
     public static void drawCircleRing(GuiGraphics guiGraphics, float cx, float cy, float r1, float r2, int numSegments,
@@ -811,14 +817,19 @@ public class MapScreen extends Screen {
         float innerR = Math.min(r1, r2);
         float outerR = Math.max(r1, r2);
         if (outerR <= 0.5f) return;
-        int drawSize = Math.max(2, Math.round(outerR * 2.0f));
-        int texSize = drawSize <= 96 ? 128 : 256;
+        int approxDiameter = Math.max(2, Math.round(outerR * 2.0f));
+        int texSize = approxDiameter <= 96 ? 128 : 256;
         float innerFrac = Math.max(0.0f, Math.min(0.98f, innerR / outerR));
         net.minecraft.resources.Identifier id = getOrCreateCircleTexture(texSize, innerFrac, color);
-        int x0 = Math.round(cx - drawSize * 0.5f);
-        int y0 = Math.round(cy - drawSize * 0.5f);
+        float outerTexR = texSize * 0.5f - 1.0f;
+        float scaleFactor = outerR / outerTexR;
+        int halfTex = texSize / 2;
+        guiGraphics.pose().pushMatrix();
+        guiGraphics.pose().translate(cx, cy);
+        guiGraphics.pose().scale(scaleFactor, scaleFactor);
         guiGraphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, id,
-                x0, y0, 0.0f, 0.0f, drawSize, drawSize, texSize, texSize, texSize, texSize);
+                -halfTex, -halfTex, 0.0f, 0.0f, texSize, texSize, texSize, texSize, texSize, texSize);
+        guiGraphics.pose().popMatrix();
     }
 
     private static class BlockInfo {

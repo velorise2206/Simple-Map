@@ -492,12 +492,16 @@ public class SimpleMap implements ModInitializer {
         }
 
         public static void onRenderGui(GuiGraphicsExtractor guiGraphics) {
+            onRenderGui(guiGraphics, 1.0f);
+        }
+
+        public static void onRenderGui(GuiGraphicsExtractor guiGraphics, float partialTick) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.screen == null) {
                 MapPerformanceGovernor.getInstance().onFrame();
                 ChunkScanner.getInstance().onForegroundFrame(mc,
                         SimpleMap.isMapUnlocked(mc.player));
-                MinimapRenderer.getInstance().renderHUD(guiGraphics, 1.0f);
+                MinimapRenderer.getInstance().renderHUD(guiGraphics, partialTick);
                 MapTeleportController.renderTransition(guiGraphics);
                 if (mc.level != null && mc.player != null) {
                     long frameId = ++mapRenderFrameId;

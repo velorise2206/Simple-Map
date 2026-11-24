@@ -16,6 +16,7 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.velorise.simplemap.client.MapDebugRecorder.MapPipelineTelemetry;
+import com.velorise.simplemap.client.MapRenderPlan;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.texture.AbstractTexture;
@@ -30,6 +31,7 @@ import org.joml.Vector4f;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 
@@ -44,14 +46,13 @@ public final class CircularMinimapFbo {
     public static final Identifier TEXTURE_ID =
             Identifier.fromNamespaceAndPath("simplemap", "dynamic/minimap_circle_fbo");
 
-    private static final int PHASE_GLOW = 128;
     private static final int CIRCLE_SIDES = 32;
-    private static final int MAX_DRAWS = 128;
+    private static final int MAX_DRAWS = 512;
     private static final float[] CLIP_NX = new float[CIRCLE_SIDES];
     private static final float[] CLIP_NY = new float[CIRCLE_SIDES];
     private static final float[] CLIP_D = new float[CIRCLE_SIDES];
     private static final float HALF_FBO = FBO_SIZE * 0.5f;
-    private static final float CLIP_RADIUS = HALF_FBO - 0.5f;
+    private static final float CLIP_RADIUS = HALF_FBO - 1.5f;
 
     static {
         for (int i = 0; i < CIRCLE_SIDES; i++) {
@@ -108,8 +109,8 @@ public final class CircularMinimapFbo {
 
     // Retained dirty-key state so unchanged frames reuse the FBO with a single blit()
     private boolean fboValid = false;
-    private GpuPageTable.MapGpuInstancePlan cachedPlan;
-    private GpuPageTable.MapGpuInstancePlan cachedFallbackPlan;
+    private MapRenderPlan cachedPlan;
+    private MapRenderPlan cachedFallbackPlan;
     private long cachedPageTableGen = Long.MIN_VALUE;
     private int cachedSize = -1;
     private long cachedQuantCenterX = Long.MIN_VALUE;
@@ -148,8 +149,8 @@ public final class CircularMinimapFbo {
 
     public boolean renderAndBlit(net.minecraft.client.gui.GuiGraphics guiGraphics,
             int viewportX, int viewportY, int size,
-            GpuPageTable.MapGpuInstancePlan plan,
-            GpuPageTable.MapGpuInstancePlan fallbackPlan,
+            MapRenderPlan plan,
+            MapRenderPlan fallbackPlan,
             double centerX, double centerZ, float scale, float rotationRad,
             boolean caveMode, float baseBrightness, float glowStrength) {
         if (plan == null || size <= 0) return false;
@@ -162,6 +163,8 @@ public final class CircularMinimapFbo {
             float effectiveScale = scale * fboScale;
             float bright = caveMode ? Math.max(0.05f, Math.min(1.0f, baseBrightness))
                     : Math.max(0.15f, Math.min(1.0f, baseBrightness));
+            float glowAlpha = (!caveMode && glowStrength > 0.005f)
+                    ? Math.max(0.0f, Math.min(1.0f, glowStrength)) : 0.0f;
 
             GpuPageTable.MapGpuPageTableService.RenderView pageTable =
                     GpuPageTable.MapGpuPageTableService.getInstance().renderView();
@@ -170,7 +173,7 @@ public final class CircularMinimapFbo {
             long quantCenterZ = Math.round(centerZ * effectiveScale * 8.0);
             int rotBucket = Math.round(rotationRad * 512.0f);
             int brightBucket = Math.round(bright * 64.0f);
-            int glowBucket = (!caveMode && glowStrength > 0.005f) ? Math.round(glowStrength * 64.0f) : 0;
+            int glowBucket = glowAlpha > 0.0f ? Math.round(glowAlpha * 64.0f) : 0;
 
             boolean needsRedraw = !fboValid
                     || cachedPlan != plan
@@ -204,14 +207,14 @@ public final class CircularMinimapFbo {
 
                     if (fallbackPlan != null && fallbackPlan != plan) {
                         emitPlan(bb, fallbackPlan, pageTable, mc, false, centerX, centerZ,
-                                effectiveScale, cos, sin, bright, 0.0f);
+                                effectiveScale, cos, sin, bright, 1.0f, 0.0f);
                     }
                     emitPlan(bb, plan, pageTable, mc, false, centerX, centerZ,
-                            effectiveScale, cos, sin, bright, 1.0f);
+                            effectiveScale, cos, sin, bright, 1.0f, 1.0f);
 
-                    if (!caveMode && glowStrength > 0.005f) {
+                    if (glowAlpha > 0.0f) {
                         emitPlan(bb, plan, pageTable, mc, true, centerX, centerZ,
-                                effectiveScale, cos, sin, 1.0f, 2.0f);
+                                effectiveScale, cos, sin, 1.0f, glowAlpha, 2.0f);
                     }
 
                     mesh = totalQuads > 0 ? bb.build() : null;
@@ -307,12 +310,32 @@ public final class CircularMinimapFbo {
         }
     }
 
-    private void emitPlan(BufferBuilder bb, GpuPageTable.MapGpuInstancePlan plan,
+    private void emitPlan(BufferBuilder bb, MapRenderPlan plan,
             GpuPageTable.MapGpuPageTableService.RenderView pageTable, Minecraft mc,
             boolean glow, double centerX, double centerZ, float effectiveScale,
-            float cos, float sin, float brightness, float z) {
-        int start = glow ? plan.firstIndexAtOrAfter(PHASE_GLOW) : 0;
-        int end = glow ? plan.size() : plan.firstIndexAtOrAfter(PHASE_GLOW);
+            float cos, float sin, float brightness, float alpha, float z) {
+        int[] phases = glow ? plan.glowPhases() : plan.basePhases();
+        if (phases == null || phases.length == 0) return;
+        GpuPageTable.MapGpuInstancePlan instancePlan = plan.instancePlan();
+        List<MapRenderPlan.Batch> batches = glow ? plan.glowBatches() : plan.baseBatches();
+        for (int phase : phases) {
+            if (instancePlan != null) {
+                emitInstancePhase(bb, instancePlan, pageTable, mc, phase,
+                        centerX, centerZ, effectiveScale, cos, sin, brightness, alpha, z);
+            }
+            if (batches != null && !batches.isEmpty()) {
+                emitBatchPhase(bb, batches, mc, phase,
+                        centerX, centerZ, effectiveScale, cos, sin, brightness, alpha, z);
+            }
+        }
+    }
+
+    private void emitInstancePhase(BufferBuilder bb, GpuPageTable.MapGpuInstancePlan plan,
+            GpuPageTable.MapGpuPageTableService.RenderView pageTable, Minecraft mc, int targetPhase,
+            double centerX, double centerZ, float effectiveScale,
+            float cos, float sin, float brightness, float alpha, float z) {
+        int start = plan.firstIndexAtOrAfter(targetPhase);
+        int end = plan.firstIndexAfter(targetPhase);
         for (int index = start; index < end && drawCount < MAX_DRAWS; index++) {
             GpuPageTable.PageTableEntry entry = pageTable.entry(plan.key(index));
             Identifier texId = pageTable.texture(entry);
@@ -341,35 +364,67 @@ public final class CircularMinimapFbo {
             float wx1 = wx0 + plan.width(index);
             float wz1 = wz0 + plan.height(index);
 
-            // Transform 4 world corners into FBO pixel space (screen-CCW order)
-            setTransformed(0, wx0, wz0, u0, v0, centerX, centerZ, effectiveScale, cos, sin);
-            setTransformed(1, wx0, wz1, u0, v1, centerX, centerZ, effectiveScale, cos, sin);
-            setTransformed(2, wx1, wz1, u1, v1, centerX, centerZ, effectiveScale, cos, sin);
-            setTransformed(3, wx1, wz0, u1, v0, centerX, centerZ, effectiveScale, cos, sin);
-
-            int n = clipPolygonToCircle(4);
-            if (n < 3) continue;
-
-            int quadsAdded = n - 2;
-            for (int k = 1; k < n - 1; k++) {
-                // Under orthoInvertY=false, Y-up projection reflects screen-CCW vertices to CW in NDC;
-                // emit [0, k+1, k, k] so triangles are CCW (front-facing) under GUI_TEXTURED culling.
-                bb.addVertex(polyX0[0], polyY0[0], z).setUv(polyU0[0], polyV0[0]).setColor(brightness, brightness, brightness, 1.0f);
-                bb.addVertex(polyX0[k + 1], polyY0[k + 1], z).setUv(polyU0[k + 1], polyV0[k + 1]).setColor(brightness, brightness, brightness, 1.0f);
-                bb.addVertex(polyX0[k], polyY0[k], z).setUv(polyU0[k], polyV0[k]).setColor(brightness, brightness, brightness, 1.0f);
-                bb.addVertex(polyX0[k], polyY0[k], z).setUv(polyU0[k], polyV0[k]).setColor(brightness, brightness, brightness, 1.0f);
-            }
-
-            if (drawCount > 0 && drawTextures[drawCount - 1] == tex) {
-                drawQuadCount[drawCount - 1] += quadsAdded;
-            } else {
-                drawTextures[drawCount] = tex;
-                drawStartQuad[drawCount] = totalQuads;
-                drawQuadCount[drawCount] = quadsAdded;
-                drawCount++;
-            }
-            totalQuads += quadsAdded;
+            emitClippedQuad(bb, tex, wx0, wz0, wx1, wz1, u0, v0, u1, v1,
+                    centerX, centerZ, effectiveScale, cos, sin, brightness, alpha, z);
         }
+    }
+
+    private void emitBatchPhase(BufferBuilder bb, List<MapRenderPlan.Batch> batches,
+            Minecraft mc, int targetPhase,
+            double centerX, double centerZ, float effectiveScale,
+            float cos, float sin, float brightness, float alpha, float z) {
+        for (MapRenderPlan.Batch batch : batches) {
+            if (batch.phase() != targetPhase) continue;
+            if (drawCount >= MAX_DRAWS) return;
+            AbstractTexture tex = mc.getTextureManager().getTexture(batch.texture());
+            if (tex == null || tex.getTextureView() == null) {
+                frameHadMissingTexture = true;
+                continue;
+            }
+            float[] v = batch.vertices();
+            for (int i = 0; i + 16 <= v.length && drawCount < MAX_DRAWS; i += 16) {
+                emitClippedQuad(bb, tex,
+                        v[i], v[i + 1], v[i + 8], v[i + 9],
+                        v[i + 2], v[i + 3], v[i + 10], v[i + 11],
+                        centerX, centerZ, effectiveScale, cos, sin, brightness, alpha, z);
+            }
+        }
+    }
+
+    private void emitClippedQuad(BufferBuilder bb, AbstractTexture tex,
+            float wx0, float wz0, float wx1, float wz1,
+            float u0, float v0, float u1, float v1,
+            double centerX, double centerZ, float effectiveScale,
+            float cos, float sin, float brightness, float alpha, float z) {
+        if (drawCount >= MAX_DRAWS) return;
+        // Transform 4 world corners into FBO pixel space (screen-CCW order)
+        setTransformed(0, wx0, wz0, u0, v0, centerX, centerZ, effectiveScale, cos, sin);
+        setTransformed(1, wx0, wz1, u0, v1, centerX, centerZ, effectiveScale, cos, sin);
+        setTransformed(2, wx1, wz1, u1, v1, centerX, centerZ, effectiveScale, cos, sin);
+        setTransformed(3, wx1, wz0, u1, v0, centerX, centerZ, effectiveScale, cos, sin);
+
+        int n = clipPolygonToCircle(4);
+        if (n < 3) return;
+
+        int quadsAdded = n - 2;
+        for (int k = 1; k < n - 1; k++) {
+            // Under orthoInvertY=false, Y-up projection reflects screen-CCW vertices to CW in NDC;
+            // emit [0, k+1, k, k] so triangles are CCW (front-facing) under GUI_TEXTURED culling.
+            bb.addVertex(polyX0[0], polyY0[0], z).setUv(polyU0[0], polyV0[0]).setColor(brightness, brightness, brightness, alpha);
+            bb.addVertex(polyX0[k + 1], polyY0[k + 1], z).setUv(polyU0[k + 1], polyV0[k + 1]).setColor(brightness, brightness, brightness, alpha);
+            bb.addVertex(polyX0[k], polyY0[k], z).setUv(polyU0[k], polyV0[k]).setColor(brightness, brightness, brightness, alpha);
+            bb.addVertex(polyX0[k], polyY0[k], z).setUv(polyU0[k], polyV0[k]).setColor(brightness, brightness, brightness, alpha);
+        }
+
+        if (drawCount > 0 && drawTextures[drawCount - 1] == tex) {
+            drawQuadCount[drawCount - 1] += quadsAdded;
+        } else {
+            drawTextures[drawCount] = tex;
+            drawStartQuad[drawCount] = totalQuads;
+            drawQuadCount[drawCount] = quadsAdded;
+            drawCount++;
+        }
+        totalQuads += quadsAdded;
     }
 
     private void setTransformed(int idx, float wx, float wz, float u, float v,

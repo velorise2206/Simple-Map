@@ -54,7 +54,8 @@ public final class SimpleMapClientMod implements ClientModInitializer {
         HudElementRegistry.attachElementAfter(
                 VanillaHudElements.CHAT,
                 net.minecraft.resources.Identifier.fromNamespaceAndPath(SimpleMap.MODID, "minimap_hud"),
-                (graphics, tickCounter) -> ClientGameEvents.onRenderGui(graphics));
+                (graphics, tickCounter) -> ClientGameEvents.onRenderGui(
+                        graphics, tickCounter.getGameTimeDeltaPartialTick(true)));
 
         // Screen render & mouse click hooks
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {

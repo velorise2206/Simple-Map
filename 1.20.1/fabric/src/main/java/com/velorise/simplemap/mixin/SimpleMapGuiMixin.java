@@ -12,6 +12,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class SimpleMapGuiMixin {
     @Inject(method = "render", at = @At("TAIL"))
     private void simplemap$onRenderGui(GuiGraphics guiGraphics, float partialTick, CallbackInfo ci) {
-        SimpleMap.ClientGameEvents.onRenderGui(guiGraphics);
+        SimpleMap.ClientGameEvents.onRenderGui(guiGraphics, partialTick);
     }
 }

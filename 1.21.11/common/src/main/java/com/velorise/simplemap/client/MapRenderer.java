@@ -667,8 +667,8 @@ public class MapRenderer {
                     poseStack.popMatrix();
                     renderedCircularFbo = com.velorise.simplemap.client.gpu.CircularMinimapFbo.getInstance()
                             .renderAndBlit(guiGraphics, viewportX, viewportY, width,
-                                    cachedPlan.plan().instancePlan(),
-                                    useFallbackPlan ? fallbackPlan.plan().instancePlan() : null,
+                                    cachedPlan.plan(),
+                                    useFallbackPlan ? fallbackPlan.plan() : null,
                                     centerX, centerZ, scale, rotRad,
                                     caveMode, baseBrightness, glowStrength);
                     poseStack.pushMatrix();
@@ -681,14 +681,21 @@ public class MapRenderer {
                 }
 
                 if (!renderedCircularFbo) {
-                    if (useFallbackPlan) {
-                        fallbackPlan.plan().drawBase(guiGraphics);
+                    int baseTint = 0xFFFFFFFF;
+                    if (caveMode && baseBrightness < 0.995f) {
+                        int c = Math.max(0, Math.min(255, Math.round(baseBrightness * 255.0f)));
+                        baseTint = 0xFF000000 | (c << 16) | (c << 8) | c;
                     }
-                    cachedPlan.plan().drawBase(guiGraphics);
+                    if (useFallbackPlan) {
+                        fallbackPlan.plan().drawBase(guiGraphics, baseTint);
+                        if (!isMinimap) guiGraphics.nextStratum();
+                    }
+                    cachedPlan.plan().drawBase(guiGraphics, baseTint);
 
                     if (!caveMode && baseBrightness < 0.995f) {
                         int darkAlpha = Math.max(0, Math.min(220, Math.round((1.0f - baseBrightness) * 255.0f)));
                         if (darkAlpha > 0) {
+                            if (!isMinimap) guiGraphics.nextStratum();
                             guiGraphics.fill(minRegionX * 512, minRegionZ * 512,
                                     (maxRegionX + 1) * 512, (maxRegionZ + 1) * 512,
                                     darkAlpha << 24);
@@ -696,16 +703,20 @@ public class MapRenderer {
                     }
 
                     if (glowStrength > 0.005f) {
+                        int glowAlpha = Math.max(1, Math.min(255, Math.round(glowStrength * 255.0f)));
+                        int glowTint = (glowAlpha << 24) | 0x00FFFFFF;
+                        if (!isMinimap) guiGraphics.nextStratum();
                         if (useFallbackPlan && cachedPlan.plan().quadCount() == 0) {
-                            fallbackPlan.plan().drawGlow(guiGraphics);
+                            fallbackPlan.plan().drawGlow(guiGraphics, glowTint);
                         }
-                        cachedPlan.plan().drawGlow(guiGraphics);
+                        cachedPlan.plan().drawGlow(guiGraphics, glowTint);
                     }
                 }
             } finally {
                 
                 
             }
+            if (!isMinimap) guiGraphics.nextStratum();
             if (drawOverlayContent && !isMinimap) {
                 drawLoadingIndicators(guiGraphics,
                         cachedPlan.plan().pendingRegions(), scale,
@@ -3339,11 +3350,11 @@ public class MapRenderer {
             return 1.0f;
         }
 
-        // ClientLevel.getSkyDarken(partialTick) returns sky brightness in [0.2, 1.0]
-        // (1.0 during full daylight, 0.2 at midnight, with rapid dusk/dawn transitions).
-        // ClientLevel.getSkyDarken() returns an int sky darken level in [0..11] (0 = full day, 11 = midnight).
-        float normalizedSun = Math.max(0.0f, Math.min(1.0f,
-                1.0f - (mc.level.getSkyDarken() / 11.0f)));
+        // EnvironmentAttributes.SKY_LIGHT_LEVEL tracks client-side sky light in [4.0, 15.0]
+        // (15.0 during full daylight, 4.0 at midnight, updating dynamically across dusk/dawn).
+        float skyLight = mc.level.environmentAttributes()
+                .getDimensionValue(net.minecraft.world.attribute.EnvironmentAttributes.SKY_LIGHT_LEVEL);
+        float normalizedSun = Math.max(0.0f, Math.min(1.0f, (skyLight - 4.0f) / 11.0f));
         return ambient + (1.0f - ambient) * normalizedSun;
     }
 
@@ -3361,8 +3372,9 @@ public class MapRenderer {
                 && !CaveMode.isFullView(mc)) {
             int layerY = CaveMode.getLayerY(mc);
             if (layerY >= 56) {
-                // Level.getSkyDarken() returns an int sky darken level in [0..11] (0 = full day, 11 = midnight).
-                float normalizedSun = Math.max(0.0f, Math.min(1.0f, 1.0f - (mc.level.getSkyDarken() / 11.0f)));
+                float skyLight = mc.level.environmentAttributes()
+                        .getDimensionValue(net.minecraft.world.attribute.EnvironmentAttributes.SKY_LIGHT_LEVEL);
+                float normalizedSun = Math.max(0.0f, Math.min(1.0f, (skyLight - 4.0f) / 11.0f));
                 return 0.82f + 0.18f * normalizedSun;
             }
         }
@@ -3808,19 +3820,24 @@ public class MapRenderer {
         }
 
         public static void draw(GuiGraphics graphics, List<MapRenderPlan.Batch> batches) {
-            drawFiltered(graphics, batches, null);
+            drawFiltered(graphics, batches, null, 0xFFFFFFFF);
         }
 
         public static void drawPhase(GuiGraphics graphics,
                 List<MapRenderPlan.Batch> batches, int targetPhase) {
             if (!hasPhase(batches, targetPhase)) return;
-            drawFiltered(graphics, batches, targetPhase);
+            drawFiltered(graphics, batches, targetPhase, 0xFFFFFFFF);
         }
 
         /** Draws one phase inside a state scope owned by MapRenderPlan. */
         public static void drawPhasePrepared(GuiGraphics graphics,
                 List<MapRenderPlan.Batch> batches, int targetPhase) {
-            drawFiltered(graphics, batches, targetPhase);
+            drawFiltered(graphics, batches, targetPhase, 0xFFFFFFFF);
+        }
+
+        public static void drawPhasePrepared(GuiGraphics graphics,
+                List<MapRenderPlan.Batch> batches, int targetPhase, int tintColor) {
+            drawFiltered(graphics, batches, targetPhase, tintColor);
         }
 
         public static void drawPhasePrepared(List<MapRenderPlan.Batch> batches,
@@ -3846,7 +3863,7 @@ public class MapRenderer {
         }
 
         private static void drawFiltered(GuiGraphics graphics,
-                List<MapRenderPlan.Batch> batches, Integer targetPhase) {
+                List<MapRenderPlan.Batch> batches, Integer targetPhase, int tintColor) {
             if (graphics == null || batches == null || batches.isEmpty()) return;
             int submissions = 0;
             for (MapRenderPlan.Batch batch : batches) {
@@ -3872,7 +3889,7 @@ public class MapRenderer {
                     int ru = Math.max(1, Math.round(Math.abs(u2 - u0) * texSize));
                     int rv = Math.max(1, Math.round(Math.abs(v2 - v0) * texSize));
                     graphics.blit(RenderPipelines.GUI_TEXTURED, batch.texture(),
-                            rx, ry, uPx, vPx, rw, rh, ru, rv, texSize, texSize);
+                            rx, ry, uPx, vPx, rw, rh, ru, rv, texSize, texSize, tintColor);
                     submissions++;
                 }
             }

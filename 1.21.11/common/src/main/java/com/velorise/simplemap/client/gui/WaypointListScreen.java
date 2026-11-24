@@ -511,11 +511,15 @@ public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partia
     double mouseWorldX = mapCenterX + (mouseX - width * 0.5) / backgroundScale;
     double mouseWorldZ = mapCenterZ + (mouseY - height * 0.5) / backgroundScale;
 
+    guiGraphics.fill(0, 0, width, height, 0xFF0D0D0D);
+    guiGraphics.nextStratum();
+
     // 1. Render unobstructed live map + all waypoints in the background
     MapRenderer.getInstance().drawMap(guiGraphics, 0, 0, width, height,
             mapCenterX, mapCenterZ, backgroundScale,
             MapManager.getInstance().isViewingLiveDimension(), false, false,
             mouseWorldX, mouseWorldZ, partialTick, false);
+    guiGraphics.nextStratum();
     // 2. Highlight currently focused waypoint on the map
     if (focusedWaypoint != null) {
         int markerScreenX = (int) Math.round(width * 0.5 + (focusedWaypoint.x - mapCenterX) * backgroundScale);
@@ -1281,10 +1285,13 @@ public static class AddWaypointScreen extends Screen {
 
         // Render full, unobstructed live map + existing waypoints in the background
         // without any full-screen dark veil so terrain and markers stay crystal clear.
+        guiGraphics.fill(0, 0, width, height, 0xFF0D0D0D);
+        guiGraphics.nextStratum();
         MapRenderer.getInstance().drawMap(guiGraphics, 0, 0, width, height,
                 mapCenterX, mapCenterZ, backgroundScale,
                 MapManager.getInstance().isViewingLiveDimension(), false, false,
                 mouseWorldX, mouseWorldZ, partialTick, false);
+        guiGraphics.nextStratum();
 
         // Draw the live target waypoint marker at its exact world position on the map
         int markerScreenX = (int) Math.round(width * 0.5 + (draftX - mapCenterX) * backgroundScale);
@@ -1454,6 +1461,7 @@ public static class AddWaypointScreen extends Screen {
         @Override
         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             guiGraphics.fill(0, 0, width, height, 0xFF0D0D0D);
+            guiGraphics.nextStratum();
             int vx = 1;
             int vy = 1;
             int vw = width - 2;
@@ -1465,6 +1473,7 @@ public static class AddWaypointScreen extends Screen {
                     centerX, centerZ, scale,
                     MapManager.getInstance().isViewingLiveDimension(), false, false,
                     mouseWorldX, mouseWorldZ, partialTick, false);
+            guiGraphics.nextStratum();
 
             String instruction = Component.translatable("gui.simplemap.waypoint.picker_instruction").getString();
             int instructionWidth = font.width(instruction);

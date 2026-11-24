@@ -568,7 +568,9 @@ public class SimpleMap {
                 MapPerformanceGovernor.getInstance().onFrame();
                 ChunkScanner.getInstance().onForegroundFrame(mc,
                         SimpleMap.isMapUnlocked(mc.player));
-                MinimapRenderer.getInstance().renderHUD(event.getGuiGraphics(), 1.0f);
+                MinimapRenderer.getInstance().renderHUD(
+                        event.getGuiGraphics(),
+                        event.getPartialTick().getGameTimeDeltaPartialTick(true));
                 MapTeleportController.renderTransition(event.getGuiGraphics());
                 if (mc.level != null && mc.player != null) {
                     long frameId = ++mapRenderFrameId;

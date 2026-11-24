@@ -368,17 +368,19 @@ public class MapTextureManager {
         Integer cached = cache.get(blockId);
         if (cached != null) return cached;
         int resolved = resolveDefaultBlockColor(blockId, colourMode);
-        if (resolved != 0xFFFFFFFF) {
+        if (resolved != 0) {
             cache.put(blockId, resolved);
+            return resolved;
         }
-        return resolved;
+        return 0xFFFFFFFF;
     }
 
     /** Resolves the automatic color while deliberately ignoring a saved override. */
     public int resolveAutomaticBlockColor(String blockId) {
         Minecraft minecraft = Minecraft.getInstance();
         if (!minecraft.isSameThread()) return 0xFFFFFFFF;
-        return resolveDefaultBlockColor(blockId, MapConfig.blockColourMode);
+        int resolved = resolveDefaultBlockColor(blockId, MapConfig.blockColourMode);
+        return resolved != 0 ? resolved : 0xFFFFFFFF;
     }
 
     /** Invalidates one block's derived color, then rebuilds every cached surface tile. */
@@ -4266,7 +4268,7 @@ public class MapTextureManager {
         try {
             Identifier blockId = Identifier.parse(blockIdText);
             var block = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(blockId);
-            if (block == null) return 0xFFFFFFFF;
+            if (block == null) return 0;
             var state = block.defaultBlockState();
             var minecraft = Minecraft.getInstance();
             var level = minecraft.level;
@@ -4279,7 +4281,7 @@ public class MapTextureManager {
                     MapColor mapColor = state.getMapColor(level, position);
                     return 0xFF000000 | (mapColor.col & 0x00FFFFFF);
                 } catch (Throwable ignored) {
-                    return 0xFFFFFFFF;
+                    return 0;
                 }
             }
 
@@ -4304,7 +4306,7 @@ public class MapTextureManager {
             }
             return 0xFF000000 | (rgb & 0x00FFFFFF);
         } catch (RuntimeException exception) {
-            return 0xFFFFFFFF;
+            return 0;
         }
     }
 

@@ -400,7 +400,7 @@ public class MinimapRenderer {
         float outerRingRadius = innerRingRadius + ringWidth;
 
         // Draw dark circular backdrop first so cold/unexplored areas are cleanly masked
-        drawSolidCircle(guiGraphics, cx, cy, radius, CIRCLE_SEGMENTS, 0xFF080A0C);
+        drawSolidCircle(guiGraphics, cx, cy, radius - 0.5f, CIRCLE_SEGMENTS, 0xFF080A0C);
         // Retained FBO draws a 64-segment circular mesh directly from its texture,
         // avoiding fragile GL_STENCIL_TEST state interactions across FBO switches.
         boolean renderedViaFbo = USE_RETAINED_FRAMEBUFFER
@@ -420,12 +420,12 @@ public class MinimapRenderer {
                 // Frameless: draw nothing
             }
             case 1 -> {
-                // Vanilla parchment ring: 1.5px clean parchment ring
-                drawCircleRing(guiGraphics, cx, cy, innerRingRadius - 0.5f, innerRingRadius + 1.0f, CIRCLE_SEGMENTS, 0xFFD6BE96);
+                // Vanilla parchment ring: 2.0px crisp parchment ring overlapping the FBO rim
+                drawCircleRing(guiGraphics, cx, cy, radius - 1.0f, radius + 1.0f, CIRCLE_SEGMENTS, 0xFFD6BE96);
             }
             case 0 -> {
-                // Minimal: 1.0px single crisp ring with user-selected ring color
-                drawCircleRing(guiGraphics, cx, cy, innerRingRadius, outerRingRadius, CIRCLE_SEGMENTS, MapConfig.minimapRingColor);
+                // Minimal: 1.4px crisp ring centered over the FBO clip boundary
+                drawCircleRing(guiGraphics, cx, cy, radius - 0.8f, radius + 0.6f, CIRCLE_SEGMENTS, MapConfig.minimapRingColor);
             }
         }
         drawCompassDirections(guiGraphics, mc, cx, cy, radius, ringWidth, player, true, partialTick);
@@ -716,10 +716,7 @@ public class MinimapRenderer {
         guiGraphics.pose().pushMatrix();
         guiGraphics.pose().translate((float)(iconX), (float)(iconZ));
         if (offMap) {
-            float outerRadius = Math.max(2.5f, halfSize);
-            float innerRadius = Math.max(1.5f, outerRadius - 1.0f);
-            MapScreen.drawSolidCircleHelper(guiGraphics, 0.0f, 0.0f, outerRadius, 16, 0xFF000000, 0.0f);
-            MapScreen.drawSolidCircleHelper(guiGraphics, 0.0f, 0.0f, innerRadius, 16, 0xFFE52828, 0.0f);
+            guiGraphics.blit(RenderPipelines.GUI_TEXTURED, PLAYER_OFF_MAP_TEXTURE, -halfSize, -halfSize, 0.0f, 0.0f, markerSize, markerSize, 8, 8, 8, 8, 0xFFFF0000);
         } else {
             guiGraphics.blit(RenderPipelines.GUI_TEXTURED, RED_X_TEXTURE, -halfSize, -halfSize, 0.0f, 0.0f, markerSize, markerSize, 8, 8, 8, 8);
         }

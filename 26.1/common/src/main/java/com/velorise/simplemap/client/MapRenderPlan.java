@@ -46,6 +46,22 @@ public final class MapRenderPlan {
     public MapGpuInstancePlan instancePlan() {
         return instancePlan;
     }
+
+    public List<Batch> baseBatches() {
+        return baseBatches;
+    }
+
+    public List<Batch> glowBatches() {
+        return glowBatches;
+    }
+
+    public int[] basePhases() {
+        return basePhases;
+    }
+
+    public int[] glowPhases() {
+        return glowPhases;
+    }
     private final int[] basePhases;
     private final int[] glowPhases;
     private final long[] pendingRegions;
@@ -83,11 +99,19 @@ public final class MapRenderPlan {
     }
 
     void drawBase(GuiGraphicsExtractor graphics) {
-        drawOrdered(graphics, baseBatches, basePhases);
+        drawBase(graphics, 0xFFFFFFFF);
+    }
+
+    void drawBase(GuiGraphicsExtractor graphics, int tintColor) {
+        drawOrdered(graphics, baseBatches, basePhases, tintColor);
     }
 
     void drawGlow(GuiGraphicsExtractor graphics) {
-        drawOrdered(graphics, glowBatches, glowPhases);
+        drawGlow(graphics, 0xFFFFFFFF);
+    }
+
+    void drawGlow(GuiGraphicsExtractor graphics, int tintColor) {
+        drawOrdered(graphics, glowBatches, glowPhases, tintColor);
     }
 
     /** Replay inside a state scope already owned by MapRenderer. */
@@ -101,7 +125,7 @@ public final class MapRenderPlan {
     }
 
     private void drawOrdered(GuiGraphicsExtractor graphics, List<Batch> batches,
-            int[] phases) {
+            int[] phases, int tintColor) {
         if (graphics == null || phases.length == 0) return;
         /*
          * One immutable plan used to flush GuiGraphicsExtractor, query GL depth state and
@@ -110,10 +134,9 @@ public final class MapRenderPlan {
          * points while GPU utilisation remained low. Scope state once and preserve
          * the same coarse-to-fine phase ordering inside it.
          */
-        if (phases.length == 0) return;
         for (int phase : phases) {
-            MapGpuInstanceRenderer.drawPhasePrepared(graphics, instancePlan, phase);
-            MapRenderer.MapAtlasBatchRenderer.drawPhasePrepared(graphics, batches, phase);
+            MapGpuInstanceRenderer.drawPhasePrepared(graphics, instancePlan, phase, tintColor);
+            MapRenderer.MapAtlasBatchRenderer.drawPhasePrepared(graphics, batches, phase, tintColor);
         }
     }
 

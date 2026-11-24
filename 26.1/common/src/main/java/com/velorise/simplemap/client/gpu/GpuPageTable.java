@@ -364,12 +364,17 @@ public static final class MapGpuInstanceRenderer {
     private static void drawFiltered(GuiGraphicsExtractor graphics,
             MapGpuInstancePlan plan, boolean glow, Integer targetPhase) {
         if (graphics == null || plan == null || plan.size() == 0) return;
-        drawPreparedGui(graphics, plan, glow, targetPhase == null ? -1 : targetPhase);
+        drawPreparedGui(graphics, plan, glow, targetPhase == null ? -1 : targetPhase, 0xFFFFFFFF);
     }
 
     public static void drawPhasePrepared(GuiGraphicsExtractor graphics, MapGpuInstancePlan plan, int targetPhase) {
+        drawPhasePrepared(graphics, plan, targetPhase, 0xFFFFFFFF);
+    }
+
+    public static void drawPhasePrepared(GuiGraphicsExtractor graphics, MapGpuInstancePlan plan, int targetPhase,
+            int tintColor) {
         if (graphics == null || plan == null || plan.size() == 0) return;
-        drawPreparedGui(graphics, plan, targetPhase >= PHASE_GLOW, targetPhase);
+        drawPreparedGui(graphics, plan, targetPhase >= PHASE_GLOW, targetPhase, tintColor);
     }
 
     private static void drawPrepared(MapGpuInstancePlan plan, boolean glow,
@@ -378,7 +383,7 @@ public static final class MapGpuInstanceRenderer {
     }
 
     private static void drawPreparedGui(GuiGraphicsExtractor graphics, MapGpuInstancePlan plan,
-            boolean glow, int targetPhase) {
+            boolean glow, int targetPhase, int tintColor) {
         int start;
         int end;
         if (targetPhase >= 0) {
@@ -427,7 +432,7 @@ public static final class MapGpuInstanceRenderer {
             int rw = Math.max(1, Math.round((localU1 - localU0) * sourceSize));
             int rh = Math.max(1, Math.round((localV1 - localV0) * sourceSize));
             graphics.blit(RenderPipelines.GUI_TEXTURED, texture,
-                    x0, y0, uPx, vPx, w, h, rw, rh, atlasSize, atlasSize);
+                    x0, y0, uPx, vPx, w, h, rw, rh, atlasSize, atlasSize, tintColor);
             submissions++;
         }
         MapPipelineTelemetry.getInstance().recordRawBatchSubmissions(submissions);
