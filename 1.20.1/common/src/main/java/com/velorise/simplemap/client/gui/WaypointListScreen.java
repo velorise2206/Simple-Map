@@ -952,12 +952,54 @@ public static class AddWaypointScreen extends Screen {
         updateTabVisibility();
     }
 
+    private static final java.util.regex.Pattern THREE_COORD_PATTERN = java.util.regex.Pattern.compile(
+            "^\\s*[\\[\\(\\{]?"
+                    + "(?:[xX]\\s*[:=]?\\s*)?([+-]?\\d+(?:\\.\\d+)?)"
+                    + "(?:\\s*[,;/|]\\s*|\\s+)"
+                    + "(?:[yY]\\s*[:=]?\\s*)?([+-]?\\d+(?:\\.\\d+)?)"
+                    + "(?:\\s*[,;/|]\\s*|\\s+)"
+                    + "(?:[zZ]\\s*[:=]?\\s*)?([+-]?\\d+(?:\\.\\d+)?)"
+                    + "[\\]\\)\\}]?\\s*$");
+
     private EditBox coordinateBox(int x, int y, int width, double value, String narrationKey) {
-        EditBox box = new EditBox(this.font, x, y, width, 18, Component.translatable(narrationKey));
+        EditBox box = new EditBox(this.font, x, y, width, 18, Component.translatable(narrationKey)) {
+            @Override
+            public void insertText(String textToWrite) {
+                if (tryApplyPastedCoordinates(textToWrite)) {
+                    return;
+                }
+                super.insertText(textToWrite);
+            }
+        };
         box.setMaxLength(18);
         box.setValue(formatCoordinate(value));
         addRenderableWidget(box);
         return box;
+    }
+
+    private boolean tryApplyPastedCoordinates(String raw) {
+        if (raw == null || raw.length() < 5) return false;
+        java.util.regex.Matcher matcher = THREE_COORD_PATTERN.matcher(raw);
+        if (!matcher.matches()) return false;
+        try {
+            double px = Double.parseDouble(matcher.group(1));
+            double py = Double.parseDouble(matcher.group(2));
+            double pz = Double.parseDouble(matcher.group(3));
+            if (!Double.isFinite(px) || !Double.isFinite(py) || !Double.isFinite(pz)
+                    || Math.abs(px) > 30_000_000.0
+                    || Math.abs(py) > 30_000_000.0
+                    || Math.abs(pz) > 30_000_000.0) {
+                return false;
+            }
+            draftX = px;
+            draftY = py;
+            draftZ = pz;
+            validationMessage = "";
+            updateCoordinateInputs();
+            return true;
+        } catch (NumberFormatException ignored) {
+            return false;
+        }
     }
 
     private static String formatCoordinate(double value) {
