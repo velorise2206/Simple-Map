@@ -267,7 +267,7 @@ public static final class MapGpuBudgetController {
 
     public enum UploadKind {
         SURFACE_EXACT(450_000L, 2L * 64L * 64L * 4L),
-        CAVE_EXACT(750_000L, 4L * (64L * 64L + 32L * 32L + 16L * 16L + 8L * 8L)),
+        CAVE_EXACT(150_000L, 4L * (64L * 64L + 32L * 32L + 16L * 16L + 8L * 8L)),
         BRANCH(220_000L, 66L * 66L * 4L),
         LEGACY(1_500_000L, 2L * 512L * 512L * 4L);
 
@@ -333,11 +333,13 @@ public static final class MapGpuBudgetController {
                 .textureUploadBudgetNanos(focused);
         long fixedMaximum = focused ? FOCUSED_BUDGET_NANOS
                 : pressure ? PRESSURE_BUDGET_NANOS : NORMAL_BUDGET_NANOS;
-        frameBudgetNanos = Math.max(250_000L, Math.min(fixedMaximum, configured));
+        long minBudgetNanos = focused ? 1_500_000L : 250_000L;
+        frameBudgetNanos = Math.max(minBudgetNanos, Math.min(fixedMaximum, configured));
         long fixedBytes = focused ? FOCUSED_BYTE_BUDGET
                 : pressure ? PRESSURE_BYTE_BUDGET : NORMAL_BYTE_BUDGET;
         double ratio = frameBudgetNanos / (double) Math.max(1L, fixedMaximum);
-        frameByteBudget = Math.max(256L << 10,
+        long minByteBudget = focused ? (1L << 20) : (256L << 10);
+        frameByteBudget = Math.max(minByteBudget,
                 Math.min(fixedBytes, (long) (fixedBytes * Math.max(0.25D, ratio))));
     }
 

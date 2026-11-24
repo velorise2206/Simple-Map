@@ -125,7 +125,6 @@ private Button deathWaypointButton;
 private Button deathWaypointLimitButton;
 private Button alwaysRescanButton;
 private Button reloadAllRegionsButton;
-private Button mapRevealModeButton;
 private Button blockColourModeButton;
 private Button terrainSlopesButton;
 private Button fastFullscreenButton;
@@ -534,18 +533,6 @@ protected void init() {
     this.addRenderableWidget(cursorBlockButton);
 
     // ==================== SYSTEM CONTROLS ====================
-    mapRevealModeButton = Button.builder(
-            getMapRevealModeMessage(),
-            button -> {
-                MapConfig.mapRevealMode = 1;
-                ChunkScanner.getInstance().requestRefresh(this.minecraft);
-                MapConfig.save();
-                button.setMessage(getMapRevealModeMessage());
-            }).bounds(col1X, r1Y, colW, 20)
-            .tooltip(Tooltip.create(Component.translatable("gui.simplemap.tooltip.mapping_mode")))
-            .build();
-    this.addRenderableWidget(mapRevealModeButton);
-
     int initialChunks = pointsToChunkBudget(MapConfig.scanPointsPerTick);
     double initialScanVal = (double) (initialChunks - SCAN_CHUNK_MIN)
             / (SCAN_CHUNK_MAX - SCAN_CHUNK_MIN);
@@ -631,7 +618,7 @@ protected void init() {
                 MapConfig.terrainSlopes = (MapConfig.terrainSlopes + 1) % 3;
                 button.setMessage(getTerrainSlopesMessage());
                 refreshLoadedMapData();
-            }).bounds(col1X, r5Y, colW, 20)
+            }).bounds(col1X, r1Y, colW, 20)
             .tooltip(Tooltip.create(Component.translatable("gui.simplemap.tooltip.terrain_shading")))
             .build();
     this.addRenderableWidget(terrainSlopesButton);
@@ -643,7 +630,7 @@ protected void init() {
                 b.setMessage(getDeathWaypointMessage());
                 if (deathWaypointLimitButton != null) deathWaypointLimitButton.active = MapConfig.createDeathWaypoint;
                 MapConfig.save();
-            }).bounds(col1X, r6Y, colW, 20)
+            }).bounds(col1X, r5Y, colW, 20)
             .tooltip(Tooltip.create(Component.translatable("gui.simplemap.tooltip.death_points")))
             .build();
     this.addRenderableWidget(deathWaypointButton);
@@ -660,7 +647,7 @@ protected void init() {
                 };
                 b.setMessage(getDeathWaypointLimitMessage());
                 MapConfig.save();
-            }).bounds(col2X, r6Y, colW, 20)
+            }).bounds(col2X, r5Y, colW, 20)
             .tooltip(Tooltip.create(Component.translatable("gui.simplemap.tooltip.death_limit")))
             .build();
     deathWaypointLimitButton.active = MapConfig.createDeathWaypoint;
@@ -802,8 +789,6 @@ private void updateWidgetVisibility() {
         alwaysRescanButton.visible = showSystem;
     if (reloadAllRegionsButton != null)
         reloadAllRegionsButton.visible = showSystem;
-    if (mapRevealModeButton != null)
-        mapRevealModeButton.visible = showSystem;
     if (resetToDefaultButton != null)
         resetToDefaultButton.visible = showSystem;
     if (scanSlider != null)
@@ -1490,15 +1475,65 @@ public boolean mouseDragged(double mouseX, double mouseY, int button, double dra
     if (!(parent instanceof MapScreen)) {
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
+    final double MAGNET_SNAP_RADIUS = 14.0;
     if (isDraggingMinimap) {
         int requestedX = (int) Math.round(mouseX - dragOffsetX);
         int requestedY = (int) Math.round(mouseY - dragOffsetY);
         MinimapPosition.setFromTopLeft(requestedX, requestedY, this.width, this.height, MapConfig.minimapSize);
+        // Magnet snap: if detached coords are near the minimap's dock spot, snap them back together
+        if (MapConfig.coordsXPercent >= 0f && MapConfig.coordsYPercent >= 0f) {
+            int size = MapConfig.minimapSize;
+            int[] minimapPos = MinimapPosition.resolve(this.width, this.height, size);
+            int mx = minimapPos[0];
+            int my = minimapPos[1];
+            String coords = "0, 64, 0";
+            if (this.minecraft != null && this.minecraft.player != null) {
+                coords = String.format("%d, %d, %d",
+                        (int) Math.floor(this.minecraft.player.getX()),
+                        (int) Math.floor(this.minecraft.player.getY()),
+                        (int) Math.floor(this.minecraft.player.getZ()));
+            }
+            int textWidth = (int) (this.font.width(coords) * MapConfig.coordsScale);
+            int textHeight = (int) (9 * MapConfig.coordsScale);
+            int cx = Math.max(2, Math.min((int) (this.width * MapConfig.coordsXPercent), this.width - textWidth - 2));
+            int cy = Math.max(2, Math.min((int) (this.height * MapConfig.coordsYPercent), this.height - textHeight - 2));
+            double dockCenterX = mx + size / 2.0;
+            double dockY = my + size + 4.0;
+            double coordsCenterX = cx + textWidth / 2.0;
+            if (Math.hypot(coordsCenterX - dockCenterX, cy - dockY) <= MAGNET_SNAP_RADIUS) {
+                MapConfig.coordsXPercent = -1.0f;
+                MapConfig.coordsYPercent = -1.0f;
+            }
+        }
         return true;
     }
     if (isDraggingCoords) {
-        MapConfig.coordsXPercent = Math.max(0f, Math.min(1f, (float) (mouseX - dragCoordsOffsetX) / this.width));
-        MapConfig.coordsYPercent = Math.max(0f, Math.min(1f, (float) (mouseY - dragCoordsOffsetY) / this.height));
+        double curX = mouseX - dragCoordsOffsetX;
+        double curY = mouseY - dragCoordsOffsetY;
+        int size = MapConfig.minimapSize;
+        int[] minimapPos = MinimapPosition.resolve(this.width, this.height, size);
+        int mx = minimapPos[0];
+        int my = minimapPos[1];
+        String coords = "0, 64, 0";
+        if (this.minecraft != null && this.minecraft.player != null) {
+            coords = String.format("%d, %d, %d",
+                    (int) Math.floor(this.minecraft.player.getX()),
+                    (int) Math.floor(this.minecraft.player.getY()),
+                    (int) Math.floor(this.minecraft.player.getZ()));
+        }
+        int textWidth = (int) (this.font.width(coords) * MapConfig.coordsScale);
+        double dockCenterX = mx + size / 2.0;
+        double dockY = my + size + 4.0;
+        double curCenterX = curX + textWidth / 2.0;
+        if (MapConfig.minimapEnabled
+                && Math.hypot(curCenterX - dockCenterX, curY - dockY) <= MAGNET_SNAP_RADIUS) {
+            // Magnet snap back to minimap dock position
+            MapConfig.coordsXPercent = -1.0f;
+            MapConfig.coordsYPercent = -1.0f;
+        } else {
+            MapConfig.coordsXPercent = Math.max(0f, Math.min(1f, (float) (curX / this.width)));
+            MapConfig.coordsYPercent = Math.max(0f, Math.min(1f, (float) (curY / this.height)));
+        }
         return true;
     }
     return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);

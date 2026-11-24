@@ -15,11 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **Vanilla Color Mode (Snow & Pure-White Blocks)**: Fixed snow and other pure-white (`0xFFFFFFFF`) blocks rendering pink in Vanilla color mode across all supported Minecraft versions (`1.20.1`, `1.21.1`, `1.21.11`, and `26.1`).
 - **[26.1] Offline World-Save Map Reconstruction**: Resolved Anvil `.mca` region folders via `DimensionType.getStorageFolder(...)` in `MapManager` and `CaveTextureManager`, restoring distant surface backfill and offline cave slicing under Minecraft 26.1's `dimensions/<namespace>/<path>/region/` layout.
+- **Cave Border Seam Stitching**: Enforced 8-neighbor FULL cave border validation in `CaveTextureManager` across all versions to eliminate tile gaps between adjacent subterranean regions.
 
 ### Changed
 - **Smoother Minimap Scrolling (All Loaders)**: Updated minimap HUD rendering to use real frame `partialTick` interpolation instead of stepping at fixed 20 TPS ticks on `Fabric` (all versions), `Forge 1.20.1`, and `NeoForge 1.21.1`, delivering silky-smooth high-refresh-rate movement across every loader.
 - **Smooth Fullscreen Map Zoom & Pan (All Loaders)**: Added cursor-anchored log-space smooth zoom (mouse wheel and zoom keys) and frame-synchronized, origin-anchored mouse dragging in `MapScreen` across `1.20.1`, `1.21.1`, `1.21.11`, and `26.1`.
 - **Fullscreen Map Responsiveness (1.20.1 & 1.21.1)**: Disabled retained fullscreen FBO in `FullscreenMapFramebufferRenderer` in favor of direct `MapRenderPlan` replay, eliminating stale blurry frames and layer-switching latency while maintaining parity with 1.21.11 and 26.1.
+- **HUD Magnetic Snapping & Settings Polish**: Added bidirectional 14px magnetic snapping between coordinates HUD and minimap dock in `MapConfigScreen`, removed obsolete STREAM mapping mode, and widened GPU memory budget throttles.
 
 ---
 

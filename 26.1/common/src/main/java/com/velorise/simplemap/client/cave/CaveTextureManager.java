@@ -862,19 +862,28 @@ public final class CaveTextureManager {
                         && b.key.globalPageZ() >= minPz && b.key.globalPageZ() <= maxPz;
                 if (inViewA != inViewB) return inViewA ? -1 : 1;
 
-                int dxA = Math.abs(a.key.globalPageX() - fpx);
-                int dzA = Math.abs(a.key.globalPageZ() - fpz);
-                int ringA = Math.max(dxA, dzA);
+                // Publish region-by-region from viewport center outward, row-by-row inside each region
+                int focusRegX = fpx >> 3;
+                int focusRegZ = fpz >> 3;
+                int regAx = a.key.globalPageX() >> 3;
+                int regAz = a.key.globalPageZ() >> 3;
+                int regBx = b.key.globalPageX() >> 3;
+                int regBz = b.key.globalPageZ() >> 3;
 
-                int dxB = Math.abs(b.key.globalPageX() - fpx);
-                int dzB = Math.abs(b.key.globalPageZ() - fpz);
-                int ringB = Math.max(dxB, dzB);
+                int rdxA = Math.abs(regAx - focusRegX);
+                int rdzA = Math.abs(regAz - focusRegZ);
+                int rRingA = Math.max(rdxA, rdzA);
+                int rdxB = Math.abs(regBx - focusRegX);
+                int rdzB = Math.abs(regBz - focusRegZ);
+                int rRingB = Math.max(rdxB, rdzB);
+                if (rRingA != rRingB) return Integer.compare(rRingA, rRingB);
 
-                if (ringA != ringB) return Integer.compare(ringA, ringB);
+                long rDistSqA = (long) rdxA * rdxA + (long) rdzA * rdzA;
+                long rDistSqB = (long) rdxB * rdxB + (long) rdzB * rdzB;
+                if (rDistSqA != rDistSqB) return Long.compare(rDistSqA, rDistSqB);
 
-                long distSqA = (long) dxA * dxA + (long) dzA * dzA;
-                long distSqB = (long) dxB * dxB + (long) dzB * dzB;
-                if (distSqA != distSqB) return Long.compare(distSqA, distSqB);
+                if (regAz != regBz) return Integer.compare(regAz, regBz);
+                if (regAx != regBx) return Integer.compare(regAx, regBx);
 
                 int cmpZ = Integer.compare(a.key.globalPageZ(), b.key.globalPageZ());
                 if (cmpZ != 0) return cmpZ;
@@ -884,7 +893,7 @@ public final class CaveTextureManager {
 
         long startNanos = System.nanoTime();
         long deadlineNanos = startNanos + (force ? FORCE_UPLOAD_BUDGET_NANOS : NORMAL_UPLOAD_BUDGET_NANOS);
-        int limit = force ? 8 : (MapPerformanceGovernor.getInstance().hasForegroundUploadHeadroom() ? 6 : 3);
+        int limit = force ? 24 : (MapPerformanceGovernor.getInstance().hasForegroundUploadHeadroom() ? 16 : 8);
         int uploadedCount = 0;
 
         // 1. Upload dirty branch nodes first (up to half the budget or all if no dirty leaves)
@@ -2615,6 +2624,134 @@ public final class CaveTextureManager {
             }
         }
 
+        private static boolean isAuthoritativeFullCaveChunk(CompoundTag tag) {
+            if (tag == null) return false;
+            String status = "";
+            CompoundTag retro = tag.getCompound("below_zero_retrogen").orElse(null);
+            if (retro != null) {
+                status = retro.getString("target_status").orElse("");
+            }
+            if (status == null || status.isEmpty()) {
+                status = tag.getString("Status").orElse("");
+                if (status.isEmpty()) {
+                    CompoundTag levelTag = tag.getCompound("Level").orElse(null);
+                    if (levelTag != null) {
+                        status = levelTag.getString("Status").orElse("");
+                    }
+                }
+            }
+            if (status == null || status.isEmpty()) return false;
+            String normalized = status.trim().toLowerCase(java.util.Locale.ROOT);
+            return "minecraft:full".equals(normalized) || "full".equals(normalized);
+        }
+
+        private static CompoundTag readCaveChunkTag(RandomAccessFile raf, byte[] header,
+                AnvilSliceBuffers buffers, int chunkIdx) throws java.io.IOException {
+            int offset = chunkIdx * 4;
+            int sectorOffset = ((header[offset] & 0xFF) << 16)
+                    | ((header[offset + 1] & 0xFF) << 8)
+                    | (header[offset + 2] & 0xFF);
+            int sectorCount = header[offset + 3] & 0xFF;
+            if (sectorOffset < 2 || sectorCount == 0) return null;
+            long byteOffset = (long) sectorOffset * 4096L;
+            if (byteOffset + 5 > raf.length()) return null;
+            raf.seek(byteOffset);
+            int length = raf.readInt();
+            if (length <= 1 || length > sectorCount * 4096) return null;
+            byte compressionType = raf.readByte();
+            int dataLength = length - 1;
+            if (buffers.chunkDataBuffer.length < dataLength) {
+                buffers.chunkDataBuffer = new byte[Math.max(dataLength, buffers.chunkDataBuffer.length * 2)];
+            }
+            byte[] data = buffers.chunkDataBuffer;
+            raf.readFully(data, 0, dataLength);
+            InputStream in;
+            if (compressionType == 2) {
+                in = new InflaterInputStream(new ByteArrayInputStream(data, 0, dataLength));
+            } else if (compressionType == 1) {
+                in = new GZIPInputStream(new ByteArrayInputStream(data, 0, dataLength));
+            } else if (compressionType == 3) {
+                in = new ByteArrayInputStream(data, 0, dataLength);
+            } else {
+                return null;
+            }
+            try (DataInputStream dis = new DataInputStream(in)) {
+                return net.minecraft.nbt.NbtIo.read(dis, net.minecraft.nbt.NbtAccounter.unlimitedHeap());
+            } catch (Throwable t) {
+                return null;
+            }
+        }
+
+        private static boolean isInRegionCaveChunkFull(RandomAccessFile raf, byte[] header,
+                AnvilSliceBuffers buffers, byte[] statusCache, CompoundTag[] tagCache,
+                int cx, int cz) {
+            int chunkIdx = (cz << 5) | cx;
+            byte cached = statusCache[chunkIdx];
+            if (cached != 0) return cached > 0;
+            CompoundTag tag = null;
+            try {
+                tag = readCaveChunkTag(raf, header, buffers, chunkIdx);
+            } catch (Throwable ignored) {
+            }
+            boolean full = isAuthoritativeFullCaveChunk(tag);
+            statusCache[chunkIdx] = full ? (byte) 1 : (byte) -1;
+            if (full) {
+                tagCache[chunkIdx] = tag;
+            }
+            return full;
+        }
+
+        private static boolean isCrossRegionCaveChunkFull(File mcaDir, int nRx, int nRz,
+                int nCx, int nCz, Map<Long, Boolean> cache) {
+            long key = (((long) ((nRx << 5) + nCx)) << 32) | (((nRz << 5) + nCz) & 0xFFFFFFFFL);
+            Boolean cached = cache.get(key);
+            if (cached != null) return cached;
+            File neighborMca = new File(mcaDir, "r." + nRx + "." + nRz + ".mca");
+            boolean full = false;
+            if (neighborMca.isFile() && neighborMca.length() >= 8192L) {
+                try (RandomAccessFile nRaf = new RandomAccessFile(neighborMca, "r")) {
+                    byte[] nHeader = new byte[4096];
+                    nRaf.readFully(nHeader);
+                    AnvilSliceBuffers nBuf = new AnvilSliceBuffers();
+                    CompoundTag nTag = readCaveChunkTag(nRaf, nHeader, nBuf, (nCz << 5) | nCx);
+                    full = isAuthoritativeFullCaveChunk(nTag);
+                } catch (Throwable ignored) {
+                }
+            }
+            cache.put(key, full);
+            return full;
+        }
+
+        private static boolean isCaveChunkAndNeighborsFull(File mcaDir, int rx, int rz,
+                RandomAccessFile raf, byte[] header, AnvilSliceBuffers buffers,
+                byte[] statusCache, CompoundTag[] tagCache, Map<Long, Boolean> crossCache,
+                int cx, int cz) {
+            if (!isInRegionCaveChunkFull(raf, header, buffers, statusCache, tagCache, cx, cz)) {
+                return false;
+            }
+            for (int dz = -1; dz <= 1; dz++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    if (dx == 0 && dz == 0) continue;
+                    int nx = cx + dx;
+                    int nz = cz + dz;
+                    if (nx >= 0 && nx < 32 && nz >= 0 && nz < 32) {
+                        if (!isInRegionCaveChunkFull(raf, header, buffers, statusCache, tagCache, nx, nz)) {
+                            return false;
+                        }
+                    } else {
+                        int nRx = rx + (nx >> 5);
+                        int nRz = rz + (nz >> 5);
+                        int lCx = nx & 31;
+                        int lCz = nz & 31;
+                        if (!isCrossRegionCaveChunkFull(mcaDir, nRx, nRz, lCx, lCz, crossCache)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
         private void sliceAnvilRegion(CaveRegion region, int layerY, int rx, int rz) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.level == null || region == null) return;
@@ -2677,6 +2814,11 @@ public final class CaveTextureManager {
                 int baseChunkX = rx << 5;
                 int baseChunkZ = rz << 5;
                 boolean hasAnyChunk = false;
+                boolean ceilingDim = (region.dimensionProfile != null && region.dimensionProfile.hasCeiling())
+                        || "minecraft:the_nether".equals(region.dimensionResourceId);
+                byte[] chunkFullStatus = new byte[32 * 32];
+                CompoundTag[] chunkTagCache = new CompoundTag[32 * 32];
+                Map<Long, Boolean> crossRegionFullCache = ceilingDim ? null : new HashMap<>();
 
                 for (int cz = 0; cz < 32; cz++) {
                     if (region.isClosed() || region.hasNewerPendingAnvilSlice(layerY)) return;
@@ -2687,44 +2829,18 @@ public final class CaveTextureManager {
                             continue;
                         }
                         int chunkIdx = (cz << 5) | cx;
-                        int offset = chunkIdx * 4;
-                        int sectorOffset = ((header[offset] & 0xFF) << 16) | ((header[offset + 1] & 0xFF) << 8) | (header[offset + 2] & 0xFF);
-                        int sectorCount = header[offset + 3] & 0xFF;
-                        if (sectorOffset < 2 || sectorCount == 0) continue;
-
-                        long byteOffset = (long) sectorOffset * 4096L;
-                        if (byteOffset + 5 > raf.length()) continue;
-
-                        raf.seek(byteOffset);
-                        int length = raf.readInt();
-                        if (length <= 1 || length > sectorCount * 4096) continue;
-
-                        byte compressionType = raf.readByte();
-                        int dataLength = length - 1;
-                        if (buffers.chunkDataBuffer.length < dataLength) {
-                            buffers.chunkDataBuffer = new byte[Math.max(dataLength, buffers.chunkDataBuffer.length * 2)];
-                        }
-                        byte[] data = buffers.chunkDataBuffer;
-                        raf.readFully(data, 0, dataLength);
-
-                        InputStream in;
-                        if (compressionType == 2) {
-                            in = new InflaterInputStream(new ByteArrayInputStream(data, 0, dataLength));
-                        } else if (compressionType == 1) {
-                            in = new GZIPInputStream(new ByteArrayInputStream(data, 0, dataLength));
-                        } else if (compressionType == 3) {
-                            in = new ByteArrayInputStream(data, 0, dataLength);
+                        if (ceilingDim) {
+                            if (!isInRegionCaveChunkFull(raf, header, buffers,
+                                    chunkFullStatus, chunkTagCache, cx, cz)) {
+                                continue;
+                            }
                         } else {
-                            continue;
+                            if (!isCaveChunkAndNeighborsFull(mcaDir, rx, rz, raf, header, buffers,
+                                    chunkFullStatus, chunkTagCache, crossRegionFullCache, cx, cz)) {
+                                continue;
+                            }
                         }
-
-                        CompoundTag tag;
-                        try (DataInputStream dis = new DataInputStream(in)) {
-                            tag = net.minecraft.nbt.NbtIo.read(dis, net.minecraft.nbt.NbtAccounter.unlimitedHeap());
-                        } catch (Throwable t) {
-                            continue;
-                        }
-
+                        CompoundTag tag = chunkTagCache[chunkIdx];
                         if (tag != null) {
                             int chunkX = baseChunkX + cx;
                             int chunkZ = baseChunkZ + cz;
@@ -2734,6 +2850,7 @@ public final class CaveTextureManager {
                                     tag, cx, cz, chunkX, chunkZ, layerY, mc.level)) {
                                 hasAnyChunk = true;
                             }
+                            chunkTagCache[chunkIdx] = null;
                         }
                     }
                 }
