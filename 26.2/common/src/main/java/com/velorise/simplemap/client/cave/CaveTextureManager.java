@@ -172,7 +172,7 @@ public final class CaveTextureManager {
 
     private final Object uploadLock = new Object();
     private static final long NORMAL_UPLOAD_BUDGET_NANOS = 900_000L;
-    private static final long FORCE_UPLOAD_BUDGET_NANOS = 1_800_000L;
+    private static final long FORCE_UPLOAD_BUDGET_NANOS = 3_800_000L;
 
     public static CaveTextureManager getInstance() {
         return INSTANCE;
@@ -897,15 +897,15 @@ public final class CaveTextureManager {
                 if (regAz != regBz) return Integer.compare(regAz, regBz);
                 if (regAx != regBx) return Integer.compare(regAx, regBx);
 
-                int cmpZ = Integer.compare(a.key.globalPageZ(), b.key.globalPageZ());
-                if (cmpZ != 0) return cmpZ;
-                return Integer.compare(a.key.globalPageX(), b.key.globalPageX());
+                int cmpX = Integer.compare(a.key.globalPageX(), b.key.globalPageX());
+                if (cmpX != 0) return cmpX;
+                return Integer.compare(a.key.globalPageZ(), b.key.globalPageZ());
             });
         }
 
         long startNanos = System.nanoTime();
         long deadlineNanos = startNanos + (force ? FORCE_UPLOAD_BUDGET_NANOS : NORMAL_UPLOAD_BUDGET_NANOS);
-        int limit = force ? 24 : (MapPerformanceGovernor.getInstance().hasForegroundUploadHeadroom() ? 16 : 8);
+        int limit = force ? 64 : (MapPerformanceGovernor.getInstance().hasForegroundUploadHeadroom() ? 32 : 16);
         int uploadedCount = 0;
 
         // 1. Upload dirty branch nodes first (up to half the budget or all if no dirty leaves)
@@ -957,36 +957,72 @@ public final class CaveTextureManager {
                 return Integer.compare(a.key.nodeX(), b.key.nodeX());
             });
         }
-        int branchLimit = dirtyList.isEmpty() ? limit : Math.max(2, limit >> 1);
-        for (BranchEntry entry : dirtyBranches) {
-            if (uploadedCount >= branchLimit || (uploadedCount > 0 && System.nanoTime() >= deadlineNanos)) break;
-            int targetLayer = entry.key.band() != Integer.MIN_VALUE && activeLayerY != Integer.MIN_VALUE
-                    && CaveLayerBand.key(CaveView.LAYERED, activeLayerY) == entry.key.band()
-                    ? activeLayerY
-                    : entry.key.band();
-            if (uploadBranchNode(entry, targetLayer, entry.key.level(), entry.key.nodeX(), entry.key.nodeZ())) {
-                uploadedCount++;
-            }
-            if (!entry.dirty) {
-                synchronized (branchPages) {
-                    dirtyBranchKeys.remove(entry.key);
+        boolean prioritizeExactLeaves = preferredCaveScale >= 0.5f && !dirtyList.isEmpty();
+        if (prioritizeExactLeaves) {
+            // Zoomed-in view: stream sharp 64x64 leaves first (column-by-column per region)
+            // so coarse blurry branch tiles never flash ahead of sharp tiles.
+            for (PageEntry entry : dirtyList) {
+                if (uploadedCount >= limit || (uploadedCount > 0 && System.nanoTime() >= deadlineNanos)) break;
+                int rx = Math.floorDiv(entry.key.globalPageX(), 8);
+                int rz = Math.floorDiv(entry.key.globalPageZ(), 8);
+                int px = Math.floorMod(entry.key.globalPageX(), 8);
+                int pz = Math.floorMod(entry.key.globalPageZ(), 8);
+                if (uploadPage(entry, rx, rz, px, pz)) {
+                    uploadedCount++;
+                }
+                if (!entry.dirty) {
+                    synchronized (pages) {
+                        dirtyPageKeys.remove(entry.key);
+                    }
                 }
             }
-        }
-
-        // 2. Upload visible/near-viewport exact 64x64 pages within remaining budget.
-        for (PageEntry entry : dirtyList) {
-            if (uploadedCount >= limit || (uploadedCount > 0 && System.nanoTime() >= deadlineNanos)) break;
-            int rx = Math.floorDiv(entry.key.globalPageX(), 8);
-            int rz = Math.floorDiv(entry.key.globalPageZ(), 8);
-            int px = Math.floorMod(entry.key.globalPageX(), 8);
-            int pz = Math.floorMod(entry.key.globalPageZ(), 8);
-            if (uploadPage(entry, rx, rz, px, pz)) {
-                uploadedCount++;
+            for (BranchEntry entry : dirtyBranches) {
+                if (uploadedCount >= limit || (uploadedCount > 0 && System.nanoTime() >= deadlineNanos)) break;
+                int targetLayer = entry.key.band() != Integer.MIN_VALUE && activeLayerY != Integer.MIN_VALUE
+                        && CaveLayerBand.key(CaveView.LAYERED, activeLayerY) == entry.key.band()
+                        ? activeLayerY
+                        : entry.key.band();
+                if (uploadBranchNode(entry, targetLayer, entry.key.level(), entry.key.nodeX(), entry.key.nodeZ())) {
+                    uploadedCount++;
+                }
+                if (!entry.dirty) {
+                    synchronized (branchPages) {
+                        dirtyBranchKeys.remove(entry.key);
+                    }
+                }
             }
-            if (!entry.dirty) {
-                synchronized (pages) {
-                    dirtyPageKeys.remove(entry.key);
+        } else {
+            int branchLimit = dirtyList.isEmpty() ? limit : Math.max(2, limit >> 1);
+            for (BranchEntry entry : dirtyBranches) {
+                if (uploadedCount >= branchLimit || (uploadedCount > 0 && System.nanoTime() >= deadlineNanos)) break;
+                int targetLayer = entry.key.band() != Integer.MIN_VALUE && activeLayerY != Integer.MIN_VALUE
+                        && CaveLayerBand.key(CaveView.LAYERED, activeLayerY) == entry.key.band()
+                        ? activeLayerY
+                        : entry.key.band();
+                if (uploadBranchNode(entry, targetLayer, entry.key.level(), entry.key.nodeX(), entry.key.nodeZ())) {
+                    uploadedCount++;
+                }
+                if (!entry.dirty) {
+                    synchronized (branchPages) {
+                        dirtyBranchKeys.remove(entry.key);
+                    }
+                }
+            }
+
+            // 2. Upload visible/near-viewport exact 64x64 pages within remaining budget.
+            for (PageEntry entry : dirtyList) {
+                if (uploadedCount >= limit || (uploadedCount > 0 && System.nanoTime() >= deadlineNanos)) break;
+                int rx = Math.floorDiv(entry.key.globalPageX(), 8);
+                int rz = Math.floorDiv(entry.key.globalPageZ(), 8);
+                int px = Math.floorMod(entry.key.globalPageX(), 8);
+                int pz = Math.floorMod(entry.key.globalPageZ(), 8);
+                if (uploadPage(entry, rx, rz, px, pz)) {
+                    uploadedCount++;
+                }
+                if (!entry.dirty) {
+                    synchronized (pages) {
+                        dirtyPageKeys.remove(entry.key);
+                    }
                 }
             }
         }

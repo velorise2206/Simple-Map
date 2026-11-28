@@ -230,6 +230,13 @@ public class MapScreen extends Screen {
     private Button nightModeButton;
     private Button caveLayerModeButton;
     private Button dimensionSwitchButton;
+    private Button caveYInputToggleButton;
+    private EditBox caveYInputBox;
+    private EditBox gotoCoordsInputBox;
+    private int topCoordPanelLeft;
+    private int topCoordPanelTop;
+    private int topCoordPanelRight;
+    private int topCoordPanelBottom;
     private CaveLayerSlider caveLayerSlider;
     private long syncedCaveRevision = Long.MIN_VALUE;
     private int syncedEffectiveCaveMode = Integer.MIN_VALUE;
@@ -382,8 +389,29 @@ public class MapScreen extends Screen {
                     minimumY, maximumY, initialValue);
             caveLayerSlider.setTooltip(Tooltip.create(Component.translatable("gui.simplemap.tooltip.cave_top_y")));
             this.addRenderableWidget(caveLayerSlider);
+
+            caveYInputToggleButton = Button.builder(Component.literal("Y"), button -> toggleCaveYInputBox())
+                    .bounds(0, 0, TOOLBAR_BUTTON_SIZE, TOOLBAR_BUTTON_SIZE)
+                    .tooltip(Tooltip.create(Component.literal("Type Cave Top Y (or 'auto')")))
+                    .build();
+            this.addRenderableWidget(caveYInputToggleButton);
+
+            caveYInputBox = new EditBox(this.font, 0, 0, 56, 18, Component.literal("Cave Top Y"));
+            caveYInputBox.setMaxLength(12);
+            caveYInputBox.setHint(Component.literal("AUTO"));
+            caveYInputBox.setVisible(false);
+            caveYInputBox.active = false;
+            this.addRenderableWidget(caveYInputBox);
+
             updateCaveControlLayout();
         }
+
+        gotoCoordsInputBox = new EditBox(this.font, 0, 4, 172, 18, Component.literal("Go to coordinates"));
+        gotoCoordsInputBox.setMaxLength(64);
+        gotoCoordsInputBox.setHint(Component.literal("X [Y] Z (Enter)"));
+        gotoCoordsInputBox.setVisible(false);
+        gotoCoordsInputBox.active = false;
+        this.addRenderableWidget(gotoCoordsInputBox);
 
         if (this.minecraft != null && !CaveMode.isActive(this.minecraft)) {
             MapManager.getInstance().ensureCeilingSurfaceRegionsBackfilled();
@@ -544,11 +572,133 @@ public class MapScreen extends Screen {
         boolean manualAllowed = MapConfig.getEffectiveCaveMapMode() == 2;
         caveLayerSlider.visible = caveType != CaveMode.CaveType.OFF && manualAllowed;
         caveLayerSlider.active = caveType != CaveMode.CaveType.OFF && manualAllowed;
-        if (!caveLayerSlider.visible) return;
+        if (!caveLayerSlider.visible) {
+            if (caveYInputToggleButton != null) {
+                caveYInputToggleButton.visible = false;
+                caveYInputToggleButton.active = false;
+            }
+            closeCaveYInputBox();
+            return;
+        }
 
+        int rightColX = TOOLBAR_MARGIN + TOOLBAR_BUTTON_SIZE + TOOLBAR_GAP + 2;
         caveLayerSlider.setWidth(Math.min(190, availableWidth));
-        caveLayerSlider.setX(TOOLBAR_MARGIN + TOOLBAR_BUTTON_SIZE + TOOLBAR_GAP + 2);
+        caveLayerSlider.setX(rightColX);
         caveLayerSlider.setY(controlY + 2);
+
+        if (caveYInputToggleButton != null) {
+            caveYInputToggleButton.visible = caveLayerSlider.visible;
+            caveYInputToggleButton.active = caveLayerSlider.active;
+            caveYInputToggleButton.setX(rightColX);
+            caveYInputToggleButton.setY(controlY - TOOLBAR_BUTTON_SIZE - TOOLBAR_GAP);
+        }
+        if (caveYInputBox != null) {
+            if (!caveLayerSlider.visible) {
+                closeCaveYInputBox();
+            } else {
+                caveYInputBox.setX(rightColX + TOOLBAR_BUTTON_SIZE + TOOLBAR_GAP + 2);
+                caveYInputBox.setY(controlY - TOOLBAR_BUTTON_SIZE - TOOLBAR_GAP + 2);
+            }
+        }
+    }
+
+    private void toggleCaveYInputBox() {
+        if (caveYInputBox == null) return;
+        if (caveYInputBox.isVisible()) {
+            closeCaveYInputBox();
+            return;
+        }
+        closeGotoCoordsInputBox();
+        if (this.minecraft != null && CaveMode.hasManualTopY(this.minecraft)) {
+            caveYInputBox.setValue(Integer.toString(CaveMode.getSelectedTopY(this.minecraft)));
+        } else {
+            caveYInputBox.setValue("");
+        }
+        caveYInputBox.setVisible(true);
+        caveYInputBox.active = true;
+        this.setFocused(caveYInputBox);
+        caveYInputBox.setFocused(true);
+    }
+
+    private void closeCaveYInputBox() {
+        if (caveYInputBox == null) return;
+        caveYInputBox.setFocused(false);
+        caveYInputBox.setVisible(false);
+        caveYInputBox.active = false;
+        if (this.getFocused() == caveYInputBox) {
+            this.setFocused(null);
+        }
+    }
+
+    private void submitCaveYInputBox() {
+        if (caveYInputBox == null || this.minecraft == null) return;
+        String raw = caveYInputBox.getValue() == null ? "" : caveYInputBox.getValue().trim();
+        if (raw.isEmpty() || "auto".equalsIgnoreCase(raw)) {
+            CaveMode.setAutoTopY(this.minecraft, true);
+        } else {
+            try {
+                int parsedY = Integer.parseInt(raw);
+                CaveMode.setManualLayer(this.minecraft, parsedY, true);
+            } catch (NumberFormatException ignored) {
+                return;
+            }
+        }
+        ChunkScanner.getInstance().requestImmediateCaveLayerRefresh(this.minecraft);
+        FullscreenMapFramebufferRenderer.getInstance().invalidate();
+        FullscreenMapFramebufferRenderer.getInstance().resetFailureState();
+        MapRenderer.getInstance().clearFullscreenFallback();
+        if (caveLayerSlider != null) {
+            caveLayerSlider.syncFromMode();
+        }
+        updateCaveControlLayout();
+        closeCaveYInputBox();
+    }
+
+    private void openGotoCoordsInputBox() {
+        if (gotoCoordsInputBox == null) return;
+        closeCaveYInputBox();
+        int boxWidth = Math.min(180, Math.max(120, this.width - 24));
+        gotoCoordsInputBox.setWidth(boxWidth);
+        gotoCoordsInputBox.setX((this.width - boxWidth) / 2);
+        gotoCoordsInputBox.setY(4);
+        gotoCoordsInputBox.setValue("");
+        gotoCoordsInputBox.setVisible(true);
+        gotoCoordsInputBox.active = true;
+        this.setFocused(gotoCoordsInputBox);
+        gotoCoordsInputBox.setFocused(true);
+    }
+
+    private void closeGotoCoordsInputBox() {
+        if (gotoCoordsInputBox == null) return;
+        gotoCoordsInputBox.setFocused(false);
+        gotoCoordsInputBox.setVisible(false);
+        gotoCoordsInputBox.active = false;
+        if (this.getFocused() == gotoCoordsInputBox) {
+            this.setFocused(null);
+        }
+    }
+
+    private void submitGotoCoordsInputBox() {
+        if (gotoCoordsInputBox == null) return;
+        String raw = gotoCoordsInputBox.getValue() == null ? "" : gotoCoordsInputBox.getValue().trim();
+        if (raw.isEmpty()) {
+            closeGotoCoordsInputBox();
+            return;
+        }
+        java.util.List<Double> nums = new java.util.ArrayList<>(3);
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("-?\\d+(?:\\.\\d+)?").matcher(raw);
+        while (matcher.find() && nums.size() < 3) {
+            try {
+                nums.add(Double.parseDouble(matcher.group()));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        if (nums.size() < 2) return;
+        double targetX = nums.get(0);
+        double targetZ = nums.size() >= 3 ? nums.get(2) : nums.get(1);
+        closeGotoCoordsInputBox();
+        String currentDim = MapManager.getInstance().getCurrentDimensionResourceId();
+        focusOnCoordinates(targetX, targetZ, currentDim);
     }
 
     private void drawCaveControlBackground(GuiGraphicsExtractor guiGraphics) {
@@ -1039,7 +1189,25 @@ public class MapScreen extends Screen {
         int panelX = (this.width - panelWidth) / 2;
         // Nudge coordinate readout closer to the top edge
         int panelY = 4;
-        guiGraphics.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight, 0x88000000);
+        topCoordPanelLeft = panelX;
+        topCoordPanelTop = panelY;
+        topCoordPanelRight = panelX + panelWidth;
+        topCoordPanelBottom = panelY + panelHeight;
+        if (gotoCoordsInputBox != null && gotoCoordsInputBox.isVisible()) {
+            // Keep the top-center slot clear for the active Go-To coordinate input box.
+            drawZoomPanel(guiGraphics);
+            return;
+        }
+        boolean topPanelHovered = isInside(mouseX, mouseY,
+                topCoordPanelLeft, topCoordPanelTop, topCoordPanelRight, topCoordPanelBottom);
+        guiGraphics.fill(panelX, panelY, panelX + panelWidth, panelY + panelHeight,
+                topPanelHovered ? 0xAA000000 : 0x88000000);
+        if (topPanelHovered) {
+            guiGraphics.fill(panelX, panelY, panelX + panelWidth, panelY + 1, 0x88FFFFFF);
+            guiGraphics.fill(panelX, panelY + panelHeight - 1, panelX + panelWidth, panelY + panelHeight, 0x88FFFFFF);
+            guiGraphics.fill(panelX, panelY, panelX + 1, panelY + panelHeight, 0x88FFFFFF);
+            guiGraphics.fill(panelX + panelWidth - 1, panelY, panelX + panelWidth, panelY + panelHeight, 0x88FFFFFF);
+        }
         int lineY = panelY + 3;
         guiGraphics.text(this.font, coordText,
                 panelX + (panelWidth - coordWidth) / 2, lineY, 0xFFFFFFFF, false);
@@ -1947,6 +2115,40 @@ public class MapScreen extends Screen {
     @Override
     public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
         int keyCode = event.key(); int scanCode = event.keycode(); int modifiers = event.modifiers();
+        if (caveYInputBox != null && caveYInputBox.isVisible()) {
+            if (keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN
+                    || keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER) {
+                submitCaveYInputBox();
+                return true;
+            }
+            if (keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
+                closeCaveYInputBox();
+                return true;
+            }
+            if (caveYInputBox.keyPressed(event)) {
+                return true;
+            }
+            if (caveYInputBox.isFocused()) {
+                return true;
+            }
+        }
+        if (gotoCoordsInputBox != null && gotoCoordsInputBox.isVisible()) {
+            if (keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN
+                    || keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER) {
+                submitGotoCoordsInputBox();
+                return true;
+            }
+            if (keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
+                closeGotoCoordsInputBox();
+                return true;
+            }
+            if (gotoCoordsInputBox.keyPressed(event)) {
+                return true;
+            }
+            if (gotoCoordsInputBox.isFocused()) {
+                return true;
+            }
+        }
         if (SimpleMap.ClientModEvents.OPEN_MAP_KEY.matches(event)) {
             consumeBufferedClicks(SimpleMap.ClientModEvents.OPEN_MAP_KEY);
             this.onClose();
@@ -2021,6 +2223,33 @@ public class MapScreen extends Screen {
         // If map is not unlocked, only allow clicking screen widgets (buttons)
         if (!SimpleMap.isMapUnlocked(this.minecraft.player)) {
             return super.mouseClicked(event, doubleClick);
+        }
+
+        // Click the top-center cursor-coordinate panel to open Go-To coordinate input.
+        if (button == 0 && (gotoCoordsInputBox == null || !gotoCoordsInputBox.isVisible())
+                && topCoordPanelRight > topCoordPanelLeft
+                && isInside(mouseX, mouseY,
+                        topCoordPanelLeft, topCoordPanelTop, topCoordPanelRight, topCoordPanelBottom)) {
+            openGotoCoordsInputBox();
+            return true;
+        }
+        if (gotoCoordsInputBox != null && gotoCoordsInputBox.isVisible()
+                && !isInside(mouseX, mouseY,
+                        gotoCoordsInputBox.getX(), gotoCoordsInputBox.getY(),
+                        gotoCoordsInputBox.getX() + gotoCoordsInputBox.getWidth(),
+                        gotoCoordsInputBox.getY() + gotoCoordsInputBox.getHeight())) {
+            closeGotoCoordsInputBox();
+        }
+        if (caveYInputBox != null && caveYInputBox.isVisible()
+                && !isInside(mouseX, mouseY,
+                        caveYInputBox.getX(), caveYInputBox.getY(),
+                        caveYInputBox.getX() + caveYInputBox.getWidth(),
+                        caveYInputBox.getY() + caveYInputBox.getHeight())
+                && (caveYInputToggleButton == null || !isInside(mouseX, mouseY,
+                        caveYInputToggleButton.getX(), caveYInputToggleButton.getY(),
+                        caveYInputToggleButton.getX() + caveYInputToggleButton.getWidth(),
+                        caveYInputToggleButton.getY() + caveYInputToggleButton.getHeight()))) {
+            closeCaveYInputBox();
         }
 
         // Click the visible bottom-right player-coordinate panel to share in chat.

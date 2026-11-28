@@ -103,7 +103,7 @@ public final class CaveMode {
     /* Keeps the candidate cave start separate from the displayed cave map.
      * A one-second stable layer window prevents stair/elytra/player-Y jitter from
      * rebasing thousands of retained Layered projection products. */
-    private static final int AUTO_LAYER_STABLE_TICKS = 20;
+    private static final int AUTO_LAYER_STABLE_TICKS = 8;
     /** Prevent stair steps and small jumps from oscillating around the active layer Y. */
     private static final int AUTO_LAYER_BOUNDARY_HYSTERESIS = 3;
     private static final int AUTO_LAYER_FAST_SWITCH_DISTANCE = 32;
