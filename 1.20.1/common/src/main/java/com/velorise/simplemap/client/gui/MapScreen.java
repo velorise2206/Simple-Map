@@ -690,6 +690,9 @@ public class MapScreen extends Screen {
             }
             updateCaveControlLayout();
         }
+        if (caveLayerSlider != null && caveLayerSlider.isDragging()) {
+            caveLayerSlider.flushPendingLiveScrub(frameNow);
+        }
         // AUTO is a live view: keep the compact Y readout synchronized with the
         // player's stable scan band without turning the slider into manual mode.
         if (caveLayerSlider != null && !caveLayerSlider.isDragging()
@@ -2321,9 +2324,14 @@ public class MapScreen extends Screen {
 
     private final class CaveLayerSlider extends AbstractSliderButton {
         private static final double AUTO_ZONE = 0.045;
+        private static final long LIVE_SCRUB_DEBOUNCE_NANOS = 60_000_000L;
         private int minimumY;
         private int maximumY;
         private boolean dragging;
+        private boolean pendingLiveCommit;
+        private long lastLiveCommitNanos;
+        private boolean lastCommittedAuto = true;
+        private int lastCommittedY = Integer.MIN_VALUE;
 
         private CaveLayerSlider(int x, int y, int width, int height,
                 int minimumY, int maximumY, double initialValue) {
@@ -2398,10 +2406,28 @@ public class MapScreen extends Screen {
 
         @Override
         protected void applyValue() {
-            // Mouse dragging only previews the selected Y range. Committing here
-            // would swap caches and start a new vertical scan for every mouse pixel.
-            if (dragging) return;
-            commitLayer();
+            if (dragging) {
+                pendingLiveCommit = true;
+                flushPendingLiveScrub(System.nanoTime());
+                return;
+            }
+            commitLayer(true);
+        }
+
+        private void flushPendingLiveScrub(long nowNanos) {
+            if (!pendingLiveCommit) return;
+            if (lastLiveCommitNanos != 0L
+                    && nowNanos - lastLiveCommitNanos < LIVE_SCRUB_DEBOUNCE_NANOS) {
+                return;
+            }
+            pendingLiveCommit = false;
+            boolean autoNow = isAutoSelection();
+            int yNow = autoNow ? Integer.MIN_VALUE : selectedY();
+            if (autoNow == lastCommittedAuto && yNow == lastCommittedY) {
+                return;
+            }
+            lastLiveCommitNanos = nowNanos;
+            commitLayer(false);
         }
 
         @Override
@@ -2422,26 +2448,31 @@ public class MapScreen extends Screen {
         public void onRelease(double mouseX, double mouseY) {
             boolean shouldCommit = dragging;
             dragging = false;
-            if (shouldCommit) commitLayer();
+            pendingLiveCommit = false;
+            if (shouldCommit) commitLayer(true);
             super.onRelease(mouseX, mouseY);
         }
 
-        private void commitLayer() {
+        private void commitLayer(boolean persist) {
             MapScreen.this.lastViewportInteractionNanos = 0L;
             MapPerformanceGovernor.getInstance().setFullscreenState(true, false);
-            if (isAutoSelection()) {
+            boolean autoNow = isAutoSelection();
+            int yNow = autoNow ? Integer.MIN_VALUE : selectedY();
+            boolean changed = autoNow != lastCommittedAuto || yNow != lastCommittedY;
+            lastCommittedAuto = autoNow;
+            lastCommittedY = yNow;
+            if (autoNow) {
                 this.value = 0.0;
-                CaveMode.setAutoTopY(MapScreen.this.minecraft);
+                CaveMode.setAutoTopY(MapScreen.this.minecraft, persist);
             } else {
-                CaveMode.setManualLayer(MapScreen.this.minecraft, selectedY());
+                CaveMode.setManualLayer(MapScreen.this.minecraft, yNow, persist);
             }
-            // Activate and stream the selected cache. Existing exact-layer data is
-            // preserved; only a genuinely uncached player region receives a small
-            // live prime, avoiding a circular rescan that overwrote warm pixels.
-            ChunkScanner.getInstance().requestImmediateCaveLayerRefresh(MapScreen.this.minecraft);
-            FullscreenMapFramebufferRenderer.getInstance().invalidate();
-            FullscreenMapFramebufferRenderer.getInstance().resetFailureState();
-            MapRenderer.getInstance().clearFullscreenFallback();
+            if (changed || persist) {
+                ChunkScanner.getInstance().requestImmediateCaveLayerRefresh(MapScreen.this.minecraft);
+                FullscreenMapFramebufferRenderer.getInstance().invalidate();
+                FullscreenMapFramebufferRenderer.getInstance().resetFailureState();
+                MapRenderer.getInstance().clearFullscreenFallback();
+            }
             updateMessage();
             if (MapScreen.this.caveLayerModeButton != null) {
                 MapScreen.this.updateCaveTooltip();

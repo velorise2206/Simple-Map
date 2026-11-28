@@ -310,25 +310,39 @@ public final class CaveMode {
     }
 
     public static synchronized void setManualLayer(Minecraft mc, int topY) {
+        setManualLayer(mc, topY, true);
+    }
+
+    public static synchronized void setManualLayer(Minecraft mc, int topY, boolean persist) {
         if (MapConfig.getEffectiveCaveMapMode() != 2 || mc == null || mc.level == null) return;
         String dimension = dimensionKey(mc);
         int clamped = clampViewedY(mc,
                 CaveLayerBand.projectionTopY(CaveView.LAYERED, topY));
         Integer previous = MANUAL_TOP_Y.put(dimension, clamped);
         Integer previousStored = MapConfig.caveDimensionManualY.put(dimension, clamped);
-        if (previous == null || previous != clamped || previousStored == null || previousStored != clamped) {
+        boolean changed = previous == null || previous != clamped
+                || previousStored == null || previousStored != clamped;
+        if (changed) {
             modeRevision++;
+        }
+        if (persist) {
             MapConfig.save();
         }
     }
 
     public static synchronized void setAutoTopY(Minecraft mc) {
+        setAutoTopY(mc, true);
+    }
+
+    public static synchronized void setAutoTopY(Minecraft mc, boolean persist) {
         if (mc == null || mc.level == null) return;
         String dimension = dimensionKey(mc);
         Integer removedMem = MANUAL_TOP_Y.remove(dimension);
         Integer removedCfg = MapConfig.caveDimensionManualY.remove(dimension);
         if (removedMem != null || removedCfg != null) {
             modeRevision++;
+        }
+        if (persist) {
             MapConfig.save();
         }
     }

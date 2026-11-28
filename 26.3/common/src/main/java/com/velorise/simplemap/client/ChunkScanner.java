@@ -1430,9 +1430,19 @@ public class ChunkScanner {
         MapViewportCoordinator.getInstance().onLayerChanged();
         if (mc.level != null && mc.player != null
                 && MapManager.getInstance().acceptsLiveLevel(mc.level)) {
-            // Prime immediate player neighborhood without stalling the UI frame;
-            // remaining chunks stream progressively via scanVisibleCaveArea.
-            scanCaveAroundPlayerUniform(mc, 48);
+            int targetLayer = fullView ? Integer.MIN_VALUE : topY;
+            int playerRx = ((int) Math.floor(mc.player.getX())) >> 9;
+            int playerRz = ((int) Math.floor(mc.player.getZ())) >> 9;
+            CaveMapManager caveManager = CaveMapManager.getInstance();
+            if (caveManager.hasRegionFile(targetLayer, playerRx, playerRz)) {
+                // Singleplayer / archived region: prioritize the whole 512x512 player
+                // region on the center-out IO queue so it appears uniformly instead of
+                // popping a disjoint 48-block circle before the rest of the region arrives.
+                caveManager.requestVisibleRegion(targetLayer, playerRx, playerRz);
+            } else {
+                // Multiplayer (no local .mca): prime immediate player neighborhood live.
+                scanCaveAroundPlayerUniform(mc, 48);
+            }
         }
     }
 

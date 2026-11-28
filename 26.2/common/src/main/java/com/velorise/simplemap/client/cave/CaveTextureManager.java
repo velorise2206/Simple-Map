@@ -443,8 +443,11 @@ public final class CaveTextureManager {
         if (activeLayerY == layerY) return;
         int oldLayer = activeLayerY;
         if (oldLayer != Integer.MIN_VALUE && layerY != Integer.MIN_VALUE) {
-            // Retain previous layer for atomic whole-page swap during band/layer transitions
-            previousLayerY = sameBand(oldLayer, layerY);
+            // Retain the most recent layer that actually has resident GPU pages so rapid
+            // slider scrubbing never replaces warm fallback tiles with an empty intermediate layer.
+            if (hasResidentPagesForLayer(oldLayer) || previousLayerY == Integer.MIN_VALUE) {
+                previousLayerY = sameBand(oldLayer, layerY);
+            }
             CaveMode.beginTransition();
         } else {
             previousLayerY = Integer.MIN_VALUE;
@@ -537,13 +540,22 @@ public final class CaveTextureManager {
         return atlas.region(entry.slot, 1.0f);
     }
 
+    private boolean hasResidentPagesForLayer(int layerY) {
+        if (layerY == Integer.MIN_VALUE) return false;
+        String dimId = currentDimensionId();
+        int band = CaveLayerBand.key(CaveView.LAYERED, layerY);
+        for (Map.Entry<RegionBandKey, Long> entry : residentPageMasks.entrySet()) {
+            RegionBandKey key = entry.getKey();
+            if (key.band == band && dimId.equals(key.dimension) && entry.getValue() != 0L) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public PageSelection peekFallbackPage(int layerY, int rx, int rz,
             int pageX, int pageZ, float scale, MapRequestLane lane) {
         if (layerY == Integer.MIN_VALUE || previousLayerY == Integer.MIN_VALUE) {
-            previousLayerY = Integer.MIN_VALUE;
-            return null;
-        }
-        if (Math.abs(previousLayerY - layerY) > 16) {
             previousLayerY = Integer.MIN_VALUE;
             return null;
         }
@@ -1608,13 +1620,67 @@ public final class CaveTextureManager {
         private static final int MAX_COMPAT_REGIONS = 128;
         private static final int SCDAT_MAGIC = 0x53434448; // 'SCDG' (canonical cave lighting + lava/water ceiling-penetration fix)
 
-        private final ExecutorService diskExecutor = Executors.newFixedThreadPool(
-                Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors() - 1)), r -> {
-            Thread t = new Thread(r, "SimpleMap-CaveIO");
-            t.setDaemon(true);
-            t.setPriority(Thread.NORM_PRIORITY - 1);
-            return t;
-        });
+        private final AtomicLong ioTaskSequence = new AtomicLong(0L);
+        private final ExecutorService diskExecutor = createCenterOutDiskExecutor();
+
+        private static ExecutorService createCenterOutDiskExecutor() {
+            int threads = Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors() - 1));
+            return new java.util.concurrent.ThreadPoolExecutor(
+                    threads, threads, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+                    new java.util.concurrent.PriorityBlockingQueue<>(),
+                    r -> {
+                        Thread t = new Thread(r, "SimpleMap-CaveIO");
+                        t.setDaemon(true);
+                        t.setPriority(Thread.NORM_PRIORITY - 1);
+                        return t;
+                    });
+        }
+
+        private final class PrioritizedRegionIoTask implements Runnable, Comparable<PrioritizedRegionIoTask> {
+            private final CaveRegion target;
+            private final int band;
+            private final int rx;
+            private final int rz;
+            private final int layerY;
+            private final long generation;
+            private final long distanceSq;
+            private final long sequence;
+
+            private PrioritizedRegionIoTask(CaveRegion target, int band, int rx, int rz,
+                    int layerY, long generation, long distanceSq, long sequence) {
+                this.target = target;
+                this.band = band;
+                this.rx = rx;
+                this.rz = rz;
+                this.layerY = layerY;
+                this.generation = generation;
+                this.distanceSq = distanceSq;
+                this.sequence = sequence;
+            }
+
+            @Override
+            public int compareTo(PrioritizedRegionIoTask other) {
+                int genCmp = Long.compare(other.generation, this.generation);
+                if (genCmp != 0) return genCmp;
+                int distCmp = Long.compare(this.distanceSq, other.distanceSq);
+                if (distCmp != 0) return distCmp;
+                return Long.compare(this.sequence, other.sequence);
+            }
+
+            @Override
+            public void run() {
+                runRegionIoWorker(target, band, rx, rz, layerY);
+            }
+        }
+
+        private long regionFocusDistanceSq(int rx, int rz) {
+            CaveTextureManager tex = CaveTextureManager.getInstance();
+            long focusRx = tex.focusPageX >> 3;
+            long focusRz = tex.focusPageZ >> 3;
+            long dx = rx - focusRx;
+            long dz = rz - focusRz;
+            return dx * dx + dz * dz;
+        }
 
         private volatile File baseDirectory;
         private volatile File surfaceDirectory;
@@ -4175,7 +4241,11 @@ public final class CaveTextureManager {
 
             if (startWorker) {
                 CaveRegion asyncTarget = target;
-                diskExecutor.execute(() -> runRegionIoWorker(asyncTarget, band, rx, rz, layerY));
+                long gen = layerGeneration.get();
+                long distSq = regionFocusDistanceSq(rx, rz);
+                long seq = ioTaskSequence.incrementAndGet();
+                diskExecutor.execute(new PrioritizedRegionIoTask(
+                        asyncTarget, band, rx, rz, layerY, gen, distSq, seq));
             }
             return target;
         }
