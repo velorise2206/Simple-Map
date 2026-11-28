@@ -2208,7 +2208,7 @@ public class MapRenderer {
                             && (surfaceTextures.completeSubtileMask(pageX, pageZ)
                                     & MapPageLayout.FULL_SUBTILE_MASK)
                                     == MapPageLayout.FULL_SUBTILE_MASK;
-                    if (!exactFull) {
+                    if (!exactFull && scale < 0.5f) {
                         CaveAtlasRegion fallback = childKnown ? branch : null;
                         if (fallback == null && !inheritedCoverage) {
                             if (ancestor == null) {
@@ -2353,13 +2353,6 @@ public class MapRenderer {
                 || surfaceTextures.hasAnyPageTexture(rx, rz);
         if (logicalExactCoverage) {
             addLogicalSurfacePageQuad(builder, globalPageX, globalPageZ, phase);
-        } else if (phase == MapRenderPlan.PHASE_EXACT && hasSource) {
-            CaveAtlasRegion underlay = findSurfaceAncestor(
-                    MapOverviewTextureManager.getInstance(), 0,
-                    globalPageX, globalPageZ);
-            if (underlay != null) {
-                addAncestorQuad(builder, underlay, 0, globalPageX, globalPageZ);
-            }
         }
         if (collectPending && hasSource) {
             builder.pending(rx, rz);
