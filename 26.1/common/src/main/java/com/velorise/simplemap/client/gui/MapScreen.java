@@ -80,6 +80,7 @@ public class MapScreen extends Screen {
     private static final double MOMENTUM_FRICTION = 7.5;
     private static final double MAX_MOMENTUM_BLOCKS_PER_SECOND = 12_000.0;
     private static final double ZOOM_SMOOTH_SPEED = 18.0;
+    private static float rememberedScale = Float.NaN;
     double centerX;
     double centerZ;
     float scale = DEFAULT_MAP_SCALE;
@@ -258,7 +259,10 @@ public class MapScreen extends Screen {
             MapManager.getInstance().updateWorldAndDimension(this.minecraft);
         }
         if (this.width > 0 && !this.hasFocusedCoordinateOverride) {
-            this.scale = Math.max(getMinimumStableScale(), (this.width - 2) / 1000.0f);
+            float initialScale = (Float.isFinite(rememberedScale) && rememberedScale > 0.0f)
+                    ? Math.min(12.0f, rememberedScale)
+                    : (this.width - 2) / 1000.0f;
+            this.scale = Math.max(getMinimumStableScale(), initialScale);
             this.visualScale = this.scale;
             this.currentRenderScale = this.scale;
         }
@@ -317,6 +321,7 @@ public class MapScreen extends Screen {
                     this.centerX = this.minecraft.player.getX();
                     this.centerZ = this.minecraft.player.getZ();
                     this.scale = DEFAULT_MAP_SCALE;
+                    rememberedScale = this.scale;
                     this.visualScale = this.scale;
                     this.currentRenderScale = this.scale;
                     clampScaleForCurrentMode();
@@ -1975,6 +1980,7 @@ public class MapScreen extends Screen {
             this.centerX = this.minecraft.player.getX();
             this.centerZ = this.minecraft.player.getZ();
             this.scale = DEFAULT_MAP_SCALE;
+            rememberedScale = this.scale;
             this.visualScale = this.scale;
             this.currentRenderScale = this.scale;
             cancelMotionAndOpenAnimation();
@@ -2533,6 +2539,9 @@ public class MapScreen extends Screen {
     public void onClose() {
         if (this.caveLayerSlider != null && this.caveLayerSlider.isDragging()) {
             this.caveLayerSlider.finishDrag();
+        }
+        if (Float.isFinite(this.scale) && this.scale > 0.0f) {
+            rememberedScale = this.scale;
         }
         // Retain the selected dimension in MapManager when closing MapScreen so
         // the Minimap can display the chosen dimension with proportional coordinate scaling

@@ -300,8 +300,9 @@ public class MinimapRenderer {
         // 3. Draw coordinate overlay text with dynamic scale and position
         if (MapConfig.coordsEnabled) {
             String coords = coordinateText(player);
-            int textWidth = (int) (mc.font.width(coords) * MapConfig.coordsScale);
-            int textHeight = (int) (9 * MapConfig.coordsScale);
+            float effectiveCoordsScale = resolveEffectiveCoordsScale(mc, coords, size);
+            int textWidth = (int) (mc.font.width(coords) * effectiveCoordsScale);
+            int textHeight = (int) (9 * effectiveCoordsScale);
 
             int cx, cy;
             if (MapConfig.coordsXPercent < 0 || MapConfig.coordsYPercent < 0) {
@@ -319,7 +320,7 @@ public class MinimapRenderer {
 
             guiGraphics.pose().pushMatrix();
             guiGraphics.pose().translate((float)(cx), (float)(cy));
-            guiGraphics.pose().scale((float)(MapConfig.coordsScale), (float)(MapConfig.coordsScale));
+            guiGraphics.pose().scale((float)(effectiveCoordsScale), (float)(effectiveCoordsScale));
 
             int rawWidth = mc.font.width(coords);
             guiGraphics.fill(-3, -2, rawWidth + 3, 9, 0x88000000);
@@ -341,6 +342,19 @@ public class MinimapRenderer {
         }
     }
 
+
+    private static float resolveEffectiveCoordsScale(Minecraft mc, String coords, int minimapSize) {
+        float baseScale = MapConfig.coordsScale;
+        if (minimapSize >= 64 || MapConfig.coordsXPercent >= 0.0f || MapConfig.coordsYPercent >= 0.0f) {
+            return baseScale;
+        }
+        int rawWidth = mc.font.width(coords);
+        if (rawWidth <= 0) {
+            return baseScale;
+        }
+        float fitScale = (float) Math.max(16, minimapSize) / (rawWidth + 6.0f);
+        return Math.max(0.35f, Math.min(baseScale, fitScale));
+    }
 
     private String coordinateText(Player player) {
         int x = (int) Math.floor(player.getX());
