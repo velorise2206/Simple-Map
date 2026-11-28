@@ -9,7 +9,7 @@ description: Lightweight Paper/Spigot/Purpur companion plugin to control Simple 
 commands:
   simplemap:
     description: Manage Simple Map server cave map policy.
-    usage: /simplemap <status|cave|reload>
+    usage: /simplemap <status|cave|nether|reload>
     permission: simplemap.admin
 
 permissions:

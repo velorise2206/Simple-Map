@@ -3986,10 +3986,14 @@ public class MapManager {
         }
 
         public static boolean canTeleport(Minecraft minecraft) {
-            return minecraft != null && minecraft.player != null
-                    && (minecraft.player.isCreative()
-                            || minecraft.player.isSpectator()
-                            || minecraft.player.hasPermissions(2));
+            if (minecraft == null || minecraft.player == null
+                    || minecraft.player.connection == null) {
+                return false;
+            }
+            var commands = minecraft.player.connection.getCommands();
+            return commands != null
+                    && commands.getRoot() != null
+                    && commands.getRoot().getChild("teleport") != null;
         }
 
         public static int defaultTargetY(String dimension) {

@@ -443,10 +443,30 @@ public class ChunkScanner {
                 return false;
             }
         }
-        // Empty End chunks are legitimate void. Open terrain and hard-ceiling
-        // dimensions always contain a visible surface in a generated FULL chunk.
-        return level != null && level.dimension() == Level.END
-                || manager.knownSurfaceColumnCount(chunkX, chunkZ) > 0;
+        if (manager.knownSurfaceColumnCount(chunkX, chunkZ) > 0) {
+            return true;
+        }
+        // Empty End chunks and genuinely loaded all-air FULL chunks in open-sky
+        // dimensions (e.g., Skyblock / void Overworld) are legitimate void.
+        if (level == null || level.dimensionType().hasCeiling()) {
+            return false;
+        }
+        if (level.dimension() == Level.END) {
+            return true;
+        }
+        LevelChunk loaded = loadedSurfaceChunk(level, chunkX, chunkZ);
+        return loaded != null && isAllAirChunk(loaded);
+    }
+
+    private static boolean isAllAirChunk(LevelChunk chunk) {
+        LevelChunkSection[] sections = chunk.getSections();
+        if (sections == null) return false;
+        for (LevelChunkSection section : sections) {
+            if (section != null && !section.hasOnlyAir()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -3385,14 +3405,14 @@ public class ChunkScanner {
         String blockId = visualClassifier.info(state).blockId();
         MapTextureManager textureManager = MapTextureManager.getInstance();
 
-        if (MapConfig.blockColourMode == 1 && fallback != MapColor.NONE) {
+        if (MapConfig.blockColourMode == 1 && fallback != null && fallback != MapColor.NONE) {
             return fallback.col;
         }
 
         int sampled = textureManager.resolveBlockColor(blockId, 0);
         if (sampled == 0 || sampled == 0xFFFFFFFF) {
             if (state.is(Blocks.CHERRY_LEAVES)) return 0xE0A1B8;
-            if (fallback == MapColor.NONE) return 0;
+            if (fallback == null || fallback == MapColor.NONE) return 0;
             sampled = 0xFF000000 | fallback.col;
         }
 

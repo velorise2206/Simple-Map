@@ -6,3 +6,16 @@
 #   auto - Automatic cave mode only when underground / under a roof
 #   on   - Full cave map including manual Y-layer slicing
 cave-map-mode: off
+
+# Separate cave mode for the Nether and any ceiling/cave dimension
+# (World.Environment.NETHER or world.hasCeiling()).
+# Set to 'auto' to allow fair-play layered navigation in the Nether while
+# keeping Overworld caves disabled, or 'inherit' to follow cave-map-mode.
+nether-cave-mode: auto
+
+# Optional per-world overrides by exact world name (highest priority after bypass permission).
+# Example:
+# worlds:
+#   world_nether: auto
+#   world_resource: on
+worlds: {}
