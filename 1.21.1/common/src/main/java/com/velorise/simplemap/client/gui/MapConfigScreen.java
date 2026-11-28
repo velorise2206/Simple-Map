@@ -160,7 +160,11 @@ protected void init() {
                 getServerRequireBookMessage(remoteServer, remoteExtension),
                 button -> {
                     ServerConfig.requireMapBook = !ServerConfig.requireMapBook;
-                    MapConfig.serverRequireMapBook = ServerConfig.requireMapBook;
+                    if (this.minecraft != null && this.minecraft.getSingleplayerServer() != null) {
+                        MapConfig.applyServerSyncConfig(ServerConfig.requireMapBook, ServerConfig.caveMapMode);
+                    } else {
+                        MapConfig.serverRequireMapBook = ServerConfig.requireMapBook;
+                    }
                     ServerConfig.save();
                     syncIntegratedServerConfig();
                     button.setMessage(getServerRequireBookMessage(false, false));
@@ -187,7 +191,11 @@ protected void init() {
                         return;
                     }
                     ServerConfig.caveMapMode = (ServerConfig.caveMapMode + 1) % 3;
-                    MapConfig.serverCaveMapMode = ServerConfig.caveMapMode;
+                    if (this.minecraft != null && this.minecraft.getSingleplayerServer() != null) {
+                        MapConfig.applyServerSyncConfig(ServerConfig.requireMapBook, ServerConfig.caveMapMode);
+                    } else {
+                        MapConfig.serverCaveMapMode = ServerConfig.caveMapMode;
+                    }
                     if (ServerConfig.caveMapMode == 0) {
                         CaveMapManager.getInstance().deactivate();
                     }

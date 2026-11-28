@@ -531,9 +531,7 @@ public class SimpleMap implements ModInitializer {
         }
 
         public static void onLoggingIn() {
-            MapConfig.serverExtensionAvailable = ClientNetworkHandler.isServerExtensionAvailable();
-            MapConfig.serverRequireMapBook = false;
-            MapConfig.serverCaveMapMode = 0;
+            MapConfig.onClientLogin();
             wasPlayerDead = false;
             MinimapRenderer.getInstance().onWorldJoin();
             MapArchitectureCoordinator.getInstance().onWorldJoin();
@@ -545,9 +543,7 @@ public class SimpleMap implements ModInitializer {
             MapObservationScheduler.getInstance().reset();
             ChunkScanner.getInstance().resetForegroundWriter();
             CaveMode.clearManualLayer();
-            MapConfig.serverExtensionAvailable = false;
-            MapConfig.serverCaveMapMode = 0;
-            MapConfig.serverRequireMapBook = false;
+            MapConfig.resetServerSyncState();
             MinimapRenderer.getInstance().onWorldLeave();
             MapArchitectureCoordinator.getInstance().onWorldLeave();
             wasPlayerDead = false;

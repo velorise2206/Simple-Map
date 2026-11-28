@@ -67,9 +67,7 @@ public final class ClientNetworkHandler {
 
     static void handleSyncConfig(SyncConfigPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
-            MapConfig.serverExtensionAvailable = true;
-            MapConfig.serverRequireMapBook = payload.requireMapBook();
-            MapConfig.serverCaveMapMode = Math.max(0, Math.min(2, payload.caveMapMode()));
+            MapConfig.applyServerSyncConfig(payload.requireMapBook(), payload.caveMapMode());
             if (MapConfig.serverCaveMapMode == 0) {
                 // Server permission gates rendering only. Preserve the per-dimension
                 // OFF/CAVE/FULL type and manual cave start for the next allowed world.

@@ -601,9 +601,7 @@ public class SimpleMap {
         public static void onLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
             // Start every connection in local-only mode. A SyncConfig packet upgrades
             // the session once an installed server extension answers the handshake.
-            MapConfig.serverExtensionAvailable = ClientNetworkHandler.isServerExtensionAvailable();
-            MapConfig.serverRequireMapBook = false;
-            MapConfig.serverCaveMapMode = 0;
+            MapConfig.onClientLogin();
             wasPlayerDead = false;
             MinimapRenderer.getInstance().onWorldJoin();
             MapArchitectureCoordinator.getInstance().onWorldJoin();
@@ -620,9 +618,7 @@ public class SimpleMap {
             MapObservationScheduler.getInstance().reset();
             ChunkScanner.getInstance().resetForegroundWriter();
             CaveMode.clearManualLayer();
-            MapConfig.serverExtensionAvailable = false;
-            MapConfig.serverCaveMapMode = 0;
-            MapConfig.serverRequireMapBook = false;
+            MapConfig.resetServerSyncState();
             MinimapRenderer.getInstance().onWorldLeave();
             MapArchitectureCoordinator.getInstance().onWorldLeave();
             wasPlayerDead = false;

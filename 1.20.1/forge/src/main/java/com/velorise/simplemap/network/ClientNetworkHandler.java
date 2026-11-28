@@ -64,9 +64,7 @@ public final class ClientNetworkHandler {
 
     static void handleSyncConfig(SyncConfigPayload payload) {
         Minecraft.getInstance().execute(() -> {
-            MapConfig.serverExtensionAvailable = true;
-            MapConfig.serverRequireMapBook = payload.requireMapBook();
-            MapConfig.serverCaveMapMode = Math.max(0, Math.min(2, payload.caveMapMode()));
+            MapConfig.applyServerSyncConfig(payload.requireMapBook(), payload.caveMapMode());
             if (MapConfig.serverCaveMapMode == 0) {
                 CaveMapManager.getInstance().deactivate();
             }

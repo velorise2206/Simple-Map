@@ -230,6 +230,8 @@ public class MapScreen extends Screen {
     private Button caveLayerModeButton;
     private Button dimensionSwitchButton;
     private CaveLayerSlider caveLayerSlider;
+    private long syncedCaveRevision = Long.MIN_VALUE;
+    private int syncedEffectiveCaveMode = Integer.MIN_VALUE;
     private String selectedDimension = "LIVE";
     private final Map<String, double[]> dimensionCameras = new HashMap<>();
     private int toolbarStartX;
@@ -362,23 +364,19 @@ public class MapScreen extends Screen {
             });
             this.addRenderableWidget(caveLayerModeButton);
 
-            caveLayerModeButton.active = MapConfig.getEffectiveCaveMapMode() != 0;
-
-            if (MapConfig.getEffectiveCaveMapMode() != 0) {
-                DimensionMapProfile viewedProfile = MapManager.getInstance()
-                        .getCurrentDimensionProfile();
-                int minimumY = viewedProfile == null
-                        ? this.minecraft.level.getMinY() : viewedProfile.minY();
-                int maximumY = viewedProfile == null
-                        ? this.minecraft.level.getMaxY() : viewedProfile.maxY();
-                double initialValue = CaveMode.hasManualTopY(this.minecraft)
-                        ? CaveLayerSlider.normalizeNumeric(CaveMode.getSelectedTopY(this.minecraft), minimumY, maximumY)
-                        : 0.0;
-                caveLayerSlider = new CaveLayerSlider(0, 0, 156, 18,
-                        minimumY, maximumY, initialValue);
-                caveLayerSlider.setTooltip(Tooltip.create(Component.translatable("gui.simplemap.tooltip.cave_top_y")));
-                this.addRenderableWidget(caveLayerSlider);
-            }
+            DimensionMapProfile viewedProfile = MapManager.getInstance()
+                    .getCurrentDimensionProfile();
+            int minimumY = viewedProfile == null
+                    ? this.minecraft.level.getMinY() : viewedProfile.minY();
+            int maximumY = viewedProfile == null
+                    ? this.minecraft.level.getMaxY() : viewedProfile.maxY();
+            double initialValue = CaveMode.hasManualTopY(this.minecraft)
+                    ? CaveLayerSlider.normalizeNumeric(CaveMode.getSelectedTopY(this.minecraft), minimumY, maximumY)
+                    : 0.0;
+            caveLayerSlider = new CaveLayerSlider(0, 0, 156, 18,
+                    minimumY, maximumY, initialValue);
+            caveLayerSlider.setTooltip(Tooltip.create(Component.translatable("gui.simplemap.tooltip.cave_top_y")));
+            this.addRenderableWidget(caveLayerSlider);
             updateCaveControlLayout();
         }
 
@@ -515,8 +513,12 @@ public class MapScreen extends Screen {
     }
 
     private void updateCaveControlLayout() {
+        int effectiveCaveMode = MapConfig.getEffectiveCaveMapMode();
+        syncedCaveRevision = CaveMode.getRevision();
+        syncedEffectiveCaveMode = effectiveCaveMode;
         int controlY = this.height - TOOLBAR_BUTTON_SIZE - TOOLBAR_MARGIN;
         if (caveLayerModeButton != null) {
+            caveLayerModeButton.active = effectiveCaveMode != 0;
             updateCaveTooltip();
             caveLayerModeButton.setWidth(TOOLBAR_BUTTON_SIZE);
             caveLayerModeButton.setX(TOOLBAR_MARGIN);
@@ -678,6 +680,16 @@ public class MapScreen extends Screen {
         updateMomentum(frameNow);
         clampScaleForCurrentMode();
         currentRenderScale = visualScale * openAnimationMultiplier(frameNow);
+        // Keep cave button active state, tooltip, and slider synchronized live
+        // whenever server config sync or CaveMode revision changes while MapScreen is open.
+        if (caveLayerModeButton != null
+                && (syncedCaveRevision != CaveMode.getRevision()
+                        || syncedEffectiveCaveMode != MapConfig.getEffectiveCaveMapMode())) {
+            if (caveLayerSlider != null && !caveLayerSlider.isDragging()) {
+                caveLayerSlider.syncFromMode();
+            }
+            updateCaveControlLayout();
+        }
         // AUTO is a live view: keep the compact Y readout synchronized with the
         // player's stable scan band without turning the slider into manual mode.
         if (caveLayerSlider != null && !caveLayerSlider.isDragging()

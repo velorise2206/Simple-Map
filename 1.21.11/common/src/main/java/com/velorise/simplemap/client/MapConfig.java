@@ -167,9 +167,42 @@ public class MapConfig {
     }
 
     // Book map config
-    public static boolean serverExtensionAvailable = false; // Ephemeral, never persisted
-    public static boolean serverRequireMapBook = false; // Synced from server to client
-    public static int serverCaveMapMode = 0; // Synced: 0 = OFF, 1 = AUTO, 2 = ON
+    public static volatile boolean serverExtensionAvailable = false; // Ephemeral, never persisted
+    public static volatile boolean serverConfigSynced = false; // True once SyncConfigPayload is applied for the active session
+    public static volatile boolean serverRequireMapBook = false; // Synced from server to client
+    public static volatile int serverCaveMapMode = 0; // Synced: 0 = OFF, 1 = AUTO, 2 = ON
+
+    /** Clears ephemeral server-sync state when disconnecting from a world/server. */
+    public static synchronized void resetServerSyncState() {
+        serverExtensionAvailable = false;
+        serverConfigSynced = false;
+        serverRequireMapBook = false;
+        serverCaveMapMode = 0;
+    }
+
+    /**
+     * Initializes per-connection server-sync state on client login without clobbering
+     * a SyncConfigPayload that already arrived before the login event. Leaves
+     * serverExtensionAvailable=false until the authoritative payload arrives so the
+     * client never enters a false caveMode=0 lockout window during join.
+     */
+    public static synchronized void onClientLogin() {
+        if (serverConfigSynced) {
+            serverExtensionAvailable = true;
+            return;
+        }
+        serverExtensionAvailable = false;
+        serverRequireMapBook = false;
+        serverCaveMapMode = 0;
+    }
+
+    /** Applies an authoritative server config payload or integrated-server update. */
+    public static synchronized void applyServerSyncConfig(boolean requireMapBook, int caveMapMode) {
+        serverExtensionAvailable = true;
+        serverConfigSynced = true;
+        serverRequireMapBook = requireMapBook;
+        serverCaveMapMode = Math.max(0, Math.min(2, caveMapMode));
+    }
 
     public static void init() {
         configFile = new File(Minecraft.getInstance().gameDirectory, "simplemap/config.json");
