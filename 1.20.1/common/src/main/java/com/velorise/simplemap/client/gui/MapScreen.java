@@ -230,7 +230,6 @@ public class MapScreen extends Screen {
     private Button nightModeButton;
     private Button caveLayerModeButton;
     private Button dimensionSwitchButton;
-    private Button caveYInputToggleButton;
     private EditBox caveYInputBox;
     private EditBox gotoCoordsInputBox;
     private int topCoordPanelLeft;
@@ -390,15 +389,10 @@ public class MapScreen extends Screen {
             caveLayerSlider.setTooltip(Tooltip.create(Component.translatable("gui.simplemap.tooltip.cave_top_y")));
             this.addRenderableWidget(caveLayerSlider);
 
-            caveYInputToggleButton = Button.builder(Component.literal("Y"), button -> toggleCaveYInputBox())
-                    .bounds(0, 0, TOOLBAR_BUTTON_SIZE, TOOLBAR_BUTTON_SIZE)
-                    .tooltip(Tooltip.create(Component.literal("Type Cave Top Y (or 'auto')")))
-                    .build();
-            this.addRenderableWidget(caveYInputToggleButton);
-
-            caveYInputBox = new EditBox(this.font, 0, 0, 56, 18, Component.literal("Cave Top Y"));
+            caveYInputBox = new EditBox(this.font, 0, 0, 62, 18, Component.literal("Cave Top Y"));
             caveYInputBox.setMaxLength(12);
-            caveYInputBox.setHint(Component.literal("AUTO"));
+            caveYInputBox.setHint(Component.literal("Y: AUTO"));
+            caveYInputBox.setTooltip(Tooltip.create(Component.literal("Type Cave Top Y (or 'auto') and press Enter")));
             caveYInputBox.setVisible(false);
             caveYInputBox.active = false;
             this.addRenderableWidget(caveYInputBox);
@@ -573,11 +567,7 @@ public class MapScreen extends Screen {
         caveLayerSlider.visible = caveType != CaveMode.CaveType.OFF && manualAllowed;
         caveLayerSlider.active = caveType != CaveMode.CaveType.OFF && manualAllowed;
         if (!caveLayerSlider.visible) {
-            if (caveYInputToggleButton != null) {
-                caveYInputToggleButton.visible = false;
-                caveYInputToggleButton.active = false;
-            }
-            closeCaveYInputBox();
+            hideCaveYInputBox();
             return;
         }
 
@@ -586,41 +576,39 @@ public class MapScreen extends Screen {
         caveLayerSlider.setX(rightColX);
         caveLayerSlider.setY(controlY + 2);
 
-        if (caveYInputToggleButton != null) {
-            caveYInputToggleButton.visible = caveLayerSlider.visible;
-            caveYInputToggleButton.active = caveLayerSlider.active;
-            caveYInputToggleButton.setX(rightColX);
-            caveYInputToggleButton.setY(controlY - TOOLBAR_BUTTON_SIZE - TOOLBAR_GAP);
-        }
         if (caveYInputBox != null) {
-            if (!caveLayerSlider.visible) {
-                closeCaveYInputBox();
-            } else {
-                caveYInputBox.setX(rightColX + TOOLBAR_BUTTON_SIZE + TOOLBAR_GAP + 2);
-                caveYInputBox.setY(controlY - TOOLBAR_BUTTON_SIZE - TOOLBAR_GAP + 2);
+            caveYInputBox.setX(rightColX);
+            caveYInputBox.setY(controlY - TOOLBAR_BUTTON_SIZE - TOOLBAR_GAP + 2);
+            caveYInputBox.setVisible(true);
+            caveYInputBox.active = true;
+            if (!caveYInputBox.isFocused()) {
+                syncCaveYInputValue();
             }
         }
     }
 
-    private void toggleCaveYInputBox() {
+    private void syncCaveYInputValue() {
         if (caveYInputBox == null) return;
-        if (caveYInputBox.isVisible()) {
-            closeCaveYInputBox();
-            return;
-        }
-        closeGotoCoordsInputBox();
         if (this.minecraft != null && CaveMode.hasManualTopY(this.minecraft)) {
-            caveYInputBox.setValue(Integer.toString(CaveMode.getSelectedTopY(this.minecraft)));
-        } else {
+            String expected = Integer.toString(CaveMode.getSelectedTopY(this.minecraft));
+            if (!expected.equals(caveYInputBox.getValue())) {
+                caveYInputBox.setValue(expected);
+            }
+        } else if (!caveYInputBox.getValue().isEmpty()) {
             caveYInputBox.setValue("");
         }
-        caveYInputBox.setVisible(true);
-        caveYInputBox.active = true;
-        this.setFocused(caveYInputBox);
-        caveYInputBox.setFocused(true);
     }
 
-    private void closeCaveYInputBox() {
+    private void unfocusCaveYInputBox() {
+        if (caveYInputBox == null) return;
+        caveYInputBox.setFocused(false);
+        if (this.getFocused() == caveYInputBox) {
+            this.setFocused(null);
+        }
+        syncCaveYInputValue();
+    }
+
+    private void hideCaveYInputBox() {
         if (caveYInputBox == null) return;
         caveYInputBox.setFocused(false);
         caveYInputBox.setVisible(false);
@@ -651,12 +639,12 @@ public class MapScreen extends Screen {
             caveLayerSlider.syncFromMode();
         }
         updateCaveControlLayout();
-        closeCaveYInputBox();
+        unfocusCaveYInputBox();
     }
 
     private void openGotoCoordsInputBox() {
         if (gotoCoordsInputBox == null) return;
-        closeCaveYInputBox();
+        unfocusCaveYInputBox();
         int boxWidth = Math.min(180, Math.max(120, this.width - 24));
         gotoCoordsInputBox.setWidth(boxWidth);
         gotoCoordsInputBox.setX((this.width - boxWidth) / 2);
@@ -910,34 +898,17 @@ public class MapScreen extends Screen {
                 centerZ - demandHalfH, centerZ + demandHalfH,
                 demandScale, centerX, centerZ, viewportInteracting);
 
-        // Draw map fullscreen, North-up, no rotation. The optional pixel-aligned
-        // framebuffer retains the atlas replay and applies bounded pan motion as
-        // source UV translation. Direct rendering remains the correctness fallback.
-        boolean framebufferRendered = false;
-        if (FullscreenMapFramebufferRenderer.shouldUse(this.minecraft,
-                currentRenderScale)) {
-            framebufferRendered = FullscreenMapFramebufferRenderer.getInstance().render(
-                    guiGraphics, vx, vy, vw, vh, centerX, centerZ,
-                    scale, currentRenderScale, partialTick, viewportInteracting);
-        }
+        // Draw map fullscreen directly to the main framebuffer, North-up, no rotation.
         boolean drawPlayerInCurrentDimension = MapManager.getInstance().isViewingLiveDimension();
-        if (!framebufferRendered) {
-            MapRenderer.getInstance().drawMap(
-                guiGraphics,
-                vx, vy, vw, vh,
-                centerX, centerZ, currentRenderScale,
-                drawPlayerInCurrentDimension,
-                false,
-                false, mouseWorldX, mouseWorldZ,
-                partialTick, false
-            );
-        } else {
-            MapRenderer.getInstance().drawFullscreenOverlays(
-                    guiGraphics, vx, vy, vw, vh,
-                    centerX, centerZ, currentRenderScale,
-                    drawPlayerInCurrentDimension,
-                    mouseWorldX, mouseWorldZ, partialTick);
-        }
+        MapRenderer.getInstance().drawMap(
+            guiGraphics,
+            vx, vy, vw, vh,
+            centerX, centerZ, currentRenderScale,
+            drawPlayerInCurrentDimension,
+            false,
+            false, mouseWorldX, mouseWorldZ,
+            partialTick, false
+        );
 
         if (!MapManager.getInstance().isViewingLiveDimension()
                 && !MapManager.getInstance().hasSavedDataForCurrentDimension()) {
@@ -2087,14 +2058,14 @@ public class MapScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (caveYInputBox != null && caveYInputBox.isVisible()) {
+        if (caveYInputBox != null && caveYInputBox.isVisible() && caveYInputBox.isFocused()) {
             if (keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN
                     || keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER) {
                 submitCaveYInputBox();
                 return true;
             }
             if (keyCode == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
-                closeCaveYInputBox();
+                unfocusCaveYInputBox();
                 return true;
             }
             if (caveYInputBox.keyPressed(keyCode, scanCode, modifiers)) {
@@ -2211,16 +2182,12 @@ public class MapScreen extends Screen {
                         gotoCoordsInputBox.getY() + gotoCoordsInputBox.getHeight())) {
             closeGotoCoordsInputBox();
         }
-        if (caveYInputBox != null && caveYInputBox.isVisible()
+        if (caveYInputBox != null && caveYInputBox.isVisible() && caveYInputBox.isFocused()
                 && !isInside(mouseX, mouseY,
                         caveYInputBox.getX(), caveYInputBox.getY(),
                         caveYInputBox.getX() + caveYInputBox.getWidth(),
-                        caveYInputBox.getY() + caveYInputBox.getHeight())
-                && (caveYInputToggleButton == null || !isInside(mouseX, mouseY,
-                        caveYInputToggleButton.getX(), caveYInputToggleButton.getY(),
-                        caveYInputToggleButton.getX() + caveYInputToggleButton.getWidth(),
-                        caveYInputToggleButton.getY() + caveYInputToggleButton.getHeight()))) {
-            closeCaveYInputBox();
+                        caveYInputBox.getY() + caveYInputBox.getHeight())) {
+            unfocusCaveYInputBox();
         }
 
         // Click the visible bottom-right player-coordinate panel to share in chat.
