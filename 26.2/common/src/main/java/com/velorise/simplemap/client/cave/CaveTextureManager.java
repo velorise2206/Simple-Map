@@ -1627,7 +1627,16 @@ public final class CaveTextureManager {
             int threads = Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors() - 1));
             return new java.util.concurrent.ThreadPoolExecutor(
                     threads, threads, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
-                    new java.util.concurrent.PriorityBlockingQueue<>(),
+                    new java.util.concurrent.PriorityBlockingQueue<>(16, (a, b) -> {
+                        boolean aPrio = a instanceof PrioritizedRegionIoTask;
+                        boolean bPrio = b instanceof PrioritizedRegionIoTask;
+                        if (aPrio && bPrio) {
+                            return ((PrioritizedRegionIoTask) a).compareTo((PrioritizedRegionIoTask) b);
+                        }
+                        if (aPrio) return -1;
+                        if (bPrio) return 1;
+                        return 0;
+                    }),
                     r -> {
                         Thread t = new Thread(r, "SimpleMap-CaveIO");
                         t.setDaemon(true);
@@ -4266,6 +4275,11 @@ public final class CaveTextureManager {
                     while (asyncTarget.hasPendingAnvilSlice() && !asyncTarget.isClosed()) {
                         int requestedLayer = asyncTarget.consumePendingAnvilSlice();
                         dirtyLayerY = requestedLayer;
+                        // Skip stale layered slices immediately when the user has already scrubbed
+                        // to a newer Top Y, preventing queued background work from churning RAM.
+                        if (requestedLayer != Integer.MIN_VALUE && requestedLayer != activeLayerY) {
+                            continue;
+                        }
                         boolean needsSlice = !asyncTarget.isAnvilSliced()
                                 || (requestedLayer != Integer.MIN_VALUE
                                         && asyncTarget.getWrittenAnvilLayerY() != requestedLayer)
