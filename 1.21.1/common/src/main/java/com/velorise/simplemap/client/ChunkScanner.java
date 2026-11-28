@@ -1291,6 +1291,8 @@ public class ChunkScanner {
                 Math.max(Math.abs(centerChunkX - minChunkX), Math.abs(centerChunkX - maxChunkX)),
                 Math.max(Math.abs(centerChunkZ - minChunkZ), Math.abs(centerChunkZ - maxChunkZ))));
 
+        int targetLayer = fullView ? Integer.MIN_VALUE : layerY;
+        CaveMapManager caveManager = CaveMapManager.getInstance();
         int[] order = getRadialChunkOrder(maxRadius);
         for (int i = 0; i < order.length && System.nanoTime() < deadline; i++) {
             int packed = order[i];
@@ -1300,6 +1302,16 @@ public class ChunkScanner {
             int cz = centerChunkZ + dz;
             if (cx < minChunkX || cx > maxChunkX || cz < minChunkZ || cz > maxChunkZ) continue;
             if (!mc.level.hasChunk(cx, cz)) continue;
+            int rx = cx >> 5;
+            int rz = cz >> 5;
+            if (caveManager.hasRegionFile(targetLayer, rx, rz)) {
+                CaveMapManager.CaveRegion reg = caveManager.getRegion(targetLayer, rx, rz, false);
+                if (reg == null || !reg.isAnvilSliced()
+                        || (targetLayer != Integer.MIN_VALUE && reg.getWrittenAnvilLayerY() != targetLayer)) {
+                    caveManager.requestVisibleRegion(targetLayer, rx, rz);
+                    continue;
+                }
+            }
             if (!shouldRescanExplored() && isCaveChunkExplored(cx, cz, layerY, fullView)) continue;
             scanUrgentChunk(mc, cx, cz, layerY, true, fullView, deadline);
         }

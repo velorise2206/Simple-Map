@@ -171,8 +171,8 @@ public final class CaveTextureManager {
     private final int[][] uploadBuffers = new int[CaveTextureAtlas.LOD_COUNT][];
 
     private final Object uploadLock = new Object();
-    private static final long NORMAL_UPLOAD_BUDGET_NANOS = 900_000L;
-    private static final long FORCE_UPLOAD_BUDGET_NANOS = 3_800_000L;
+    private static final long NORMAL_UPLOAD_BUDGET_NANOS = 2_000_000L;
+    private static final long FORCE_UPLOAD_BUDGET_NANOS = 5_500_000L;
 
     public static CaveTextureManager getInstance() {
         return INSTANCE;
@@ -282,10 +282,15 @@ public final class CaveTextureManager {
             dirtyPageKeys.add(key);
         }
         synchronized (branchPages) {
+            boolean needBranches = preferredCaveScale < 0.5f;
             BranchKey k3 = new BranchKey(dimId, band, 3, rx, rz);
-            BranchEntry l3 = branchPages.computeIfAbsent(k3, BranchEntry::new);
-            l3.dirty = true;
-            dirtyBranchKeys.add(k3);
+            BranchEntry l3 = needBranches
+                    ? branchPages.computeIfAbsent(k3, BranchEntry::new)
+                    : branchPages.get(k3);
+            if (l3 != null) {
+                l3.dirty = true;
+                dirtyBranchKeys.add(k3);
+            }
 
             BranchKey k2 = new BranchKey(dimId, band, 2, Math.floorDiv(globalPageX, 4), Math.floorDiv(globalPageZ, 4));
             BranchEntry l2 = branchPages.get(k2);
@@ -342,8 +347,8 @@ public final class CaveTextureManager {
                         existing.dirty = true;
                         dirtyPageKeys.add(key);
                     } else if (regionHasContent && allowLeafPrecreate && minPx != Integer.MIN_VALUE
-                            && gpx >= minPx - 1 && gpx <= maxPx + 1
-                            && gpz >= minPz - 1 && gpz <= maxPz + 1) {
+                            && gpx >= minPx - 2 && gpx <= maxPx + 2
+                            && gpz >= minPz - 2 && gpz <= maxPz + 2) {
                         PageEntry entry = pages.computeIfAbsent(key, PageEntry::new);
                         entry.dirty = true;
                         dirtyPageKeys.add(key);
@@ -352,8 +357,9 @@ public final class CaveTextureManager {
             }
         }
         synchronized (branchPages) {
+            boolean needBranches = regionHasContent && preferredCaveScale < 0.5f;
             BranchKey k3 = new BranchKey(dimId, band, 3, rx, rz);
-            BranchEntry l3 = regionHasContent ? branchPages.computeIfAbsent(k3, BranchEntry::new) : branchPages.get(k3);
+            BranchEntry l3 = needBranches ? branchPages.computeIfAbsent(k3, BranchEntry::new) : branchPages.get(k3);
             if (l3 != null) {
                 l3.dirty = true;
                 dirtyBranchKeys.add(k3);
@@ -364,7 +370,7 @@ public final class CaveTextureManager {
             for (int dz = 0; dz < 2; dz++) {
                 for (int dx = 0; dx < 2; dx++) {
                     BranchKey k2 = new BranchKey(dimId, band, 2, baseNodeX2 + dx, baseNodeZ2 + dz);
-                    BranchEntry l2 = (regionHasContent && regionNearViewport)
+                    BranchEntry l2 = (needBranches && regionNearViewport)
                             ? branchPages.computeIfAbsent(k2, BranchEntry::new)
                             : branchPages.get(k2);
                     if (l2 != null) {
@@ -375,7 +381,7 @@ public final class CaveTextureManager {
             }
             int baseNodeX1 = rx * 4;
             int baseNodeZ1 = rz * 4;
-            boolean precreateL1 = regionHasContent && regionNearViewport && preferredCaveScale < 0.65f;
+            boolean precreateL1 = needBranches && regionNearViewport;
             for (int dz = 0; dz < 4; dz++) {
                 for (int dx = 0; dx < 4; dx++) {
                     BranchKey k1 = new BranchKey(dimId, band, 1, baseNodeX1 + dx, baseNodeZ1 + dz);
@@ -905,7 +911,7 @@ public final class CaveTextureManager {
 
         long startNanos = System.nanoTime();
         long deadlineNanos = startNanos + (force ? FORCE_UPLOAD_BUDGET_NANOS : NORMAL_UPLOAD_BUDGET_NANOS);
-        int limit = force ? 64 : (MapPerformanceGovernor.getInstance().hasForegroundUploadHeadroom() ? 32 : 16);
+        int limit = force ? 128 : (MapPerformanceGovernor.getInstance().hasForegroundUploadHeadroom() ? 64 : 32);
         int uploadedCount = 0;
 
         // 1. Upload dirty branch nodes first (up to half the budget or all if no dirty leaves)
@@ -957,10 +963,11 @@ public final class CaveTextureManager {
                 return Integer.compare(a.key.nodeX(), b.key.nodeX());
             });
         }
-        boolean prioritizeExactLeaves = preferredCaveScale >= 0.5f && !dirtyList.isEmpty();
-        if (prioritizeExactLeaves) {
-            // Zoomed-in view: stream sharp 64x64 leaves first (column-by-column per region)
-            // so coarse blurry branch tiles never flash ahead of sharp tiles.
+        boolean exactOnlyZoom = preferredCaveScale >= 0.5f;
+        if (exactOnlyZoom) {
+            // Zoomed-in view: stream ONLY sharp 64x64 leaves (column-by-column per region)
+            // and keep atlas slots free for exact leaves of recent Y layers instead of
+            // uploading blurry L1/L2/L3 branch nodes that are not displayed at >= 0.5x.
             for (PageEntry entry : dirtyList) {
                 if (uploadedCount >= limit || (uploadedCount > 0 && System.nanoTime() >= deadlineNanos)) break;
                 int rx = Math.floorDiv(entry.key.globalPageX(), 8);
@@ -973,21 +980,6 @@ public final class CaveTextureManager {
                 if (!entry.dirty) {
                     synchronized (pages) {
                         dirtyPageKeys.remove(entry.key);
-                    }
-                }
-            }
-            for (BranchEntry entry : dirtyBranches) {
-                if (uploadedCount >= limit || (uploadedCount > 0 && System.nanoTime() >= deadlineNanos)) break;
-                int targetLayer = entry.key.band() != Integer.MIN_VALUE && activeLayerY != Integer.MIN_VALUE
-                        && CaveLayerBand.key(CaveView.LAYERED, activeLayerY) == entry.key.band()
-                        ? activeLayerY
-                        : entry.key.band();
-                if (uploadBranchNode(entry, targetLayer, entry.key.level(), entry.key.nodeX(), entry.key.nodeZ())) {
-                    uploadedCount++;
-                }
-                if (!entry.dirty) {
-                    synchronized (branchPages) {
-                        dirtyBranchKeys.remove(entry.key);
                     }
                 }
             }
@@ -1385,10 +1377,11 @@ public final class CaveTextureManager {
                 boolean inView = inActiveBand
                         && lastPx >= minPx - 1 && firstPx <= maxPx + 1
                         && lastPz >= minPz - 1 && firstPz <= maxPz + 1;
+                boolean zoomedInExact = preferredCaveScale >= 0.5f;
                 long score = b.lastAccessTime
-                        + (inActiveBand ? 600_000L : 0L)
-                        + (b.key.level() == 3 && inActiveBand ? 300_000L : 0L)
-                        + (inView ? 10_000_000L : 0L);
+                        + (inActiveBand ? (zoomedInExact ? -300_000L : 600_000L) : 0L)
+                        + (!zoomedInExact && b.key.level() == 3 && inActiveBand ? 300_000L : 0L)
+                        + (!zoomedInExact && inView ? 10_000_000L : 0L);
                 if (score < oldestScore) {
                     oldestScore = score;
                     oldestBranch = b;

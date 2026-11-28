@@ -1160,10 +1160,13 @@ public class MapScreen extends Screen {
         int yCoord = 0;
         int waterSurfaceY = Integer.MIN_VALUE;
         boolean hasY = false;
-        boolean chunkLoaded = MapManager.getInstance().isViewingLiveDimension()
+        boolean chunkLoaded = !this.isDragging
+                && MapManager.getInstance().isViewingLiveDimension()
                 && this.minecraft != null && this.minecraft.level != null
                 && this.minecraft.level.hasChunk(bx >> 4, bz >> 4);
-        BlockInfo resolved = resolveCursorBlockInfo(bx, bz, chunkLoaded, System.nanoTime());
+        BlockInfo resolved = this.isDragging
+                ? null
+                : resolveCursorBlockInfo(bx, bz, chunkLoaded, System.nanoTime());
         if (resolved != null && (!resolved.name.isEmpty() || resolved.cached)) {
             yCoord = resolved.y;
             waterSurfaceY = resolved.waterSurfaceY;

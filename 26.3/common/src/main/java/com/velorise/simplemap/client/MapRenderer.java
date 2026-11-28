@@ -434,17 +434,12 @@ public class MapRenderer {
         // invoking this off-screen atlas replay. Publishing here as well alternated
         // guarded and unguarded page rectangles on every redraw, producing two
         // planning generations and two batch submissions per retained frame.
-        if (ViewportDemandPublicationPolicy.rendererOwnsDemand(manageScissor)) {
-            if (isMinimap) {
-                MapViewportCoordinator.getInstance().submitMinimap(
-                        minX, maxX, minZ, maxZ, activePolicyScale);
-            } else {
-                // Surface and cave fullscreen share the same viewport mailbox.
-                // SurfaceDemandController owns far-zoom trimming downstream.
-                MapViewportCoordinator.getInstance().submitFullscreen(
-                        minX, maxX, minZ, maxZ, activePolicyScale,
-                        centerX, centerZ, false);
-            }
+        if (ViewportDemandPublicationPolicy.rendererOwnsDemand(manageScissor) && isMinimap) {
+            // Fullscreen demand (including viewportInteracting and overscan guard) is
+            // owned exclusively by MapScreen.render(); re-submitting here with interacting=false
+            // used to clear the drag flag every frame and thrash planningKey at 120Hz.
+            MapViewportCoordinator.getInstance().submitMinimap(
+                    minX, maxX, minZ, maxZ, activePolicyScale);
         }
 
         // Visible data requests are handled by MapViewportCoordinator. Keeping
@@ -1115,7 +1110,7 @@ public class MapRenderer {
             return MapPerformanceGovernor.getInstance().underPressure()
                     ? 500_000_000L : FULLSCREEN_BRANCH_PLAN_REFRESH_NANOS;
         }
-        if (caveMode) return 80_000_000L;
+        if (caveMode) return 16_000_000L;
         // Surface hierarchy plan construction is the dominant render-thread stall in
         // PASS94 (65/68 slow plans; up to ~199 ms). Coalesce streaming revisions at
         // branch/region density instead of rebuilding the same immutable geometry at
@@ -1759,6 +1754,7 @@ public class MapRenderer {
                     }
                     if (collectCaveLeaf(builder, source, pageX, pageZ, scale,
                             drawnRegions)) continue;
+                    if (scale >= 0.5f) continue;
                     CaveAtlasRegion fallback = (branch != null && branch.childKnown(childIndex))
                             ? branch
                             : (ancestor != null ? ancestor : findCaveAncestor(source, 0, pageX, pageZ));
@@ -1809,6 +1805,9 @@ public class MapRenderer {
             float scale, LongKeySet drawnRegions, boolean logicalExactCoverage) {
         if (collectCaveLeaf(builder, source, globalPageX, globalPageZ, scale,
                 drawnRegions, MapRenderPlan.PHASE_EXACT, logicalExactCoverage)) {
+            return;
+        }
+        if (scale >= 0.5f) {
             return;
         }
         CaveAtlasRegion underlay = findCaveAncestor(source, 0, globalPageX, globalPageZ);
