@@ -3135,7 +3135,8 @@ public final class CaveTextureManager {
             int scanMaximum = isFullCave ? dimensionCeilingCap : clampedLayerY;
             int scanMinimum = isFullCave ? worldMinY : Math.max(worldMinY, clampedLayerY - 31);
             if (scanMaximum < scanMinimum) return false;
-            int minSecY = Math.max(worldMinY, scanMinimum - 16) >> 4;
+            int waterFloorMinimum = Math.max(worldMinY, scanMinimum - 48);
+            int minSecY = Math.max(worldMinY, waterFloorMinimum - 16) >> 4;
             int maxSecY = Math.min(maxBuildY, scanMaximum + 1) >> 4;
             int secSpan = maxSecY - minSecY + 1;
             if (secSpan <= 0 || secSpan > 64) return false;
@@ -3267,7 +3268,7 @@ public final class CaveTextureManager {
 
                         // 4. Water column inside cave or surface layer (underair == true): resolve down to basin floor.
                         if (kind == DecodedSection.KIND_WATER) {
-                            resolveWaterColumn(sectionArray, rawSectionTags, sectionDecoded, level, minSecY, secSpan, lx, lz, y, maxBuildY, scanMinimum,
+                            resolveWaterColumn(sectionArray, rawSectionTags, sectionDecoded, level, minSecY, secSpan, lx, lz, y, maxBuildY, waterFloorMinimum,
                                     exposedToSky, hasSkyLight && !isFullCave, regionHeights, regionRawColors, regionKinds,
                                     regionBlockLights, regionSkyLights, regionBlockIds, regionBiomeIds,
                                     localBlockPalette, localBlockMap, localBiomePalette, localBiomeMap, regIdx);
@@ -4301,7 +4302,12 @@ public final class CaveTextureManager {
                 try {
                     if (!asyncTarget.isDiskChecked()) {
                         if (loadRegionFromDisk(asyncTarget, band, rx, rz)) {
-                            if (asyncTarget.dimensionResourceId.equals(currentDimensionId()) && !asyncTarget.isClosed()) {
+                            boolean needsResliceForLayer = asyncTarget.hasPendingAnvilSlice()
+                                    && dirtyLayerY != Integer.MIN_VALUE
+                                    && asyncTarget.getWrittenAnvilLayerY() != dirtyLayerY;
+                            if (!needsResliceForLayer
+                                    && asyncTarget.dimensionResourceId.equals(currentDimensionId())
+                                    && !asyncTarget.isClosed()) {
                                 CaveTextureManager.getInstance().markRegionTextureDirty(dirtyLayerY, rx, rz);
                             }
                         }
