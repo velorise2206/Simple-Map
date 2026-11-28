@@ -788,6 +788,10 @@ public class MapScreen extends Screen {
         }
 
         if (isDragging) {
+            // Sample live sub-pixel cursor coordinates every render frame instead of waiting
+            // for discrete mouseDragged events, eliminating 0-event/2-event pan micro-stutter.
+            dragCurrentMouseX = sampleSubpixelMouseX(dragCurrentMouseX);
+            dragCurrentMouseY = sampleSubpixelMouseY(dragCurrentMouseY);
             double activeScale = Math.max(0.0001f, this.visualScale);
             double targetCenterX = dragAnchorCenterX - (dragCurrentMouseX - dragAnchorMouseX) / activeScale;
             double targetCenterZ = dragAnchorCenterZ - (dragCurrentMouseY - dragAnchorMouseY) / activeScale;
@@ -2368,12 +2372,14 @@ public class MapScreen extends Screen {
             }
             cancelMotionAndOpenAnimation();
             this.isDragging = true;
+            double subX = sampleSubpixelMouseX(mouseX);
+            double subY = sampleSubpixelMouseY(mouseY);
             dragStartX = mouseX;
             dragStartZ = mouseY;
-            dragAnchorMouseX = mouseX;
-            dragAnchorMouseY = mouseY;
-            dragCurrentMouseX = mouseX;
-            dragCurrentMouseY = mouseY;
+            dragAnchorMouseX = subX;
+            dragAnchorMouseY = subY;
+            dragCurrentMouseX = subX;
+            dragCurrentMouseY = subY;
             dragAnchorCenterX = this.centerX;
             dragAnchorCenterZ = this.centerZ;
             dragLastSampleCenterX = this.centerX;
@@ -2494,6 +2500,28 @@ public class MapScreen extends Screen {
         return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
     }
 
+    private double sampleSubpixelMouseX(double fallback) {
+        if (this.minecraft == null || this.minecraft.mouseHandler == null
+                || this.minecraft.getWindow() == null) {
+            return fallback;
+        }
+        int screenW = this.minecraft.getWindow().getScreenWidth();
+        if (screenW <= 0) return fallback;
+        return this.minecraft.mouseHandler.xpos()
+                * (double) this.minecraft.getWindow().getGuiScaledWidth() / (double) screenW;
+    }
+
+    private double sampleSubpixelMouseY(double fallback) {
+        if (this.minecraft == null || this.minecraft.mouseHandler == null
+                || this.minecraft.getWindow() == null) {
+            return fallback;
+        }
+        int screenH = this.minecraft.getWindow().getScreenHeight();
+        if (screenH <= 0) return fallback;
+        return this.minecraft.mouseHandler.ypos()
+                * (double) this.minecraft.getWindow().getGuiScaledHeight() / (double) screenH;
+    }
+
     private static double clampMomentum(double value) {
         return Math.max(-MAX_MOMENTUM_BLOCKS_PER_SECOND,
                 Math.min(MAX_MOMENTUM_BLOCKS_PER_SECOND, value));
@@ -2544,10 +2572,12 @@ public class MapScreen extends Screen {
         this.scale = Math.max(minimumScale,
                 Math.min(12.0f, this.scale * (float) Math.pow(1.15, scrollY)));
         if (this.isDragging) {
-            this.dragAnchorMouseX = mouseX;
-            this.dragAnchorMouseY = mouseY;
-            this.dragCurrentMouseX = mouseX;
-            this.dragCurrentMouseY = mouseY;
+            double subX = sampleSubpixelMouseX(mouseX);
+            double subY = sampleSubpixelMouseY(mouseY);
+            this.dragAnchorMouseX = subX;
+            this.dragAnchorMouseY = subY;
+            this.dragCurrentMouseX = subX;
+            this.dragCurrentMouseY = subY;
             this.dragAnchorCenterX = this.centerX;
             this.dragAnchorCenterZ = this.centerZ;
             this.dragLastSampleCenterX = this.centerX;
